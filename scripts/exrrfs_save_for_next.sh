@@ -8,8 +8,22 @@ cd "${DATA}" || exit 1
 mpasout_interval=${MPASOUT_INTERVAL:-1}
 fcst_hr=${FCST_HR:-1}
 #
-CDATEp=$( ${NDATE}  "${fcst_hr}"  "${CDATE}" )
-timestr=$(date -d "${CDATEp:0:8} ${CDATEp:8:2}" +%Y-%m-%d_%H.%M.%S)
+# WoFS windowed DA cycling: first guess is FCST_MIN minutes after the analysis
+# time and the completion marker is DA_MARKER (fcst_da.done); otherwise the
+# legacy hourly FCST_HR / fcst_fNNN.done convention is used.
+#
+wofs_da='false'
+[[ -n "${EVENT_DATE:-}" ]] && wofs_da='true'
+if [[ "${wofs_da}" == 'true' ]]; then
+  cdate_ymd=${CDATE:0:8}
+  cdate_hh=${CDATE:8:2}
+  cdate_mm=${CDATE:10:2}; cdate_mm=${cdate_mm:-00}
+  fcst_min=${FCST_MIN:-${DA_INTERVAL:-15}}
+  timestr=$(date -d "${cdate_ymd} ${cdate_hh}:${cdate_mm} ${fcst_min} minutes" +%Y-%m-%d_%H.%M.%S)
+else
+  CDATEp=$( ${NDATE}  "${fcst_hr}"  "${CDATE}" )
+  timestr=$(date -d "${CDATEp:0:8} ${CDATEp:8:2}" +%Y-%m-%d_%H.%M.%S)
+fi
 #
 export CMDFILE="${DATA}/poescript_savefcst"
 mkdir -p "$(dirname "${CMDFILE}")"
@@ -55,7 +69,11 @@ if (( err != 0 )) ; then
   echo "save_for_next failed with error code ${err} "
   err_exit
 else
-  touch "${COMOUT}/fcst/${WGF}/fcst_f$(printf "%03d" "${fcst_hr}").done"
+  if [[ "${wofs_da}" == 'true' ]]; then
+    touch "${COMOUT}/fcst/${WGF}/${DA_MARKER:-fcst_da.done}"
+  else
+    touch "${COMOUT}/fcst/${WGF}/fcst_f$(printf "%03d" "${fcst_hr}").done"
+  fi
 fi
 
 exit 0

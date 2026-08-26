@@ -78,15 +78,33 @@ for index in "${mem_list[@]}"; do # loop through all the members
         fcststr="fcst"
       fi
     fi
-    for (( ii=cyc_interval; ii<=$(( NUM*cyc_interval )); ii=ii+cyc_interval )); do
-      CDATEp=$(${NDATE} -${ii} "${CDATE}" )
-      PDYii=${CDATEp:0:8}
-      cycii=${CDATEp:8:2}
-      thisfile=${COMINrrfs}/${RUN}.${PDYii}/${cycii}/${fcststr}/${WGF}${memdir}/mpasout.${timestr}.nc
-      if [[ -s ${thisfile} ]]; then
-        break
-      fi
-    done
+    if [[ -n "${EVENT_DATE:-}" ]]; then
+      # WoFS sub-hourly DA cycling: the background is the previous DA cycle's
+      # forecast valid at the current analysis time. Use minute-aware arithmetic
+      # (ndate is whole-hour only) and 4-digit HHMM COM cycle tokens.
+      da_interval=$(( 10#${DA_INTERVAL:-15} ))
+      wisostr="${CDATE:0:4}-${CDATE:4:2}-${CDATE:6:2} ${CDATE:8:2}:${CDATE:10:2}:00"
+      wtimestr=$(date -u -d "${wisostr}" +%Y-%m-%d_%H.%M.%S)
+      for (( kk=1; kk<=NUM; kk++ )); do
+        prevstr=$(date -u -d "${wisostr} $(( kk*da_interval )) minutes ago" +%Y%m%d%H%M)
+        PDYii=${prevstr:0:8}
+        cycii=${prevstr:8:4}
+        thisfile=${COMINrrfs}/${RUN}.${PDYii}/${cycii}/${fcststr}/${WGF}${memdir}/mpasout.${wtimestr}.nc
+        if [[ -s ${thisfile} ]]; then
+          break
+        fi
+      done
+    else
+      for (( ii=cyc_interval; ii<=$(( NUM*cyc_interval )); ii=ii+cyc_interval )); do
+        CDATEp=$(${NDATE} -${ii} "${CDATE}" )
+        PDYii=${CDATEp:0:8}
+        cycii=${CDATEp:8:2}
+        thisfile=${COMINrrfs}/${RUN}.${PDYii}/${cycii}/${fcststr}/${WGF}${memdir}/mpasout.${timestr}.nc
+        if [[ -s ${thisfile} ]]; then
+          break
+        fi
+      done
+    fi
     if [[ -s ${thisfile} ]]; then
       echo "${cpreq} ${thisfile} ${umbrella_prep_ic_mem}/mpasout.nc"  >> "${CMDFILE}"
       echo "warm start from ${thisfile}"

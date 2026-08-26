@@ -26,7 +26,7 @@ HH=${CDATE:8:2}
 #
 #-----------------------------------------------------------------------
 #
-meshgriddir="${FIXrrfs}/${MESH_NAME}"
+meshgriddir="${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}"
 echo "INFO: meshgriddir is ${meshgriddir}"
 cp "${meshgriddir}"/"${MESH_NAME}".grid.nc mesh.nc
 

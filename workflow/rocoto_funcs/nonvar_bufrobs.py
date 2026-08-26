@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env
+from rocoto_funcs.base import xml_task, get_cascade_env, wofs_windowed
 
 # begin of nonvar_bufrobs --------------------------------------------------------
 
@@ -25,7 +25,14 @@ def nonvar_bufrobs(xmlFile, expdir):
     # dependencies
     larc_path = f'{OBSPATH}/@Y@m@d@H.rap.t@Hz.lgycld.tm00.bufr_d'
     lght_path = f'{OBSPATH}/@Y@m@d@H.rap.t@Hz.lghtng.tm00.bufr_d'
-    metar_path = f'{OBSPATH}/@Y@m@d@H.rap.t@Hz.prepbufr.tm00'
+    # In WoFS windowed mode the sub-hourly prepbufr comes from a dated
+    # PREPBUFR_DIR with an rtma_ru, minute-stamped filename.
+    if wofs_windowed():
+        prepbufr_dir = os.getenv("PREPBUFR_DIR", 'PREPBUFR_DIR_not_defined')
+        dcTaskEnv['PREPBUFR_DIR'] = f'{prepbufr_dir}'
+        metar_path = f'{prepbufr_dir}/@Y@m@d/@Y@m@d@H.rtma_ru.t@H@Mz.prepbufr.tm00'
+    else:
+        metar_path = f'{OBSPATH}/@Y@m@d@H.rap.t@Hz.prepbufr.tm00'
 
     timedep = ""
     datadep = ""

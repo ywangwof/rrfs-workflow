@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env
+from rocoto_funcs.base import xml_task, get_cascade_env, tok_hm, wofs_windowed, min_to_offset
 
 # begin of fcst --------------------------------------------------------
 
@@ -9,6 +9,40 @@ def save_for_next(xmlFile, expdir, do_ensemble=False, do_spinup=False):
     cyc_interval = os.getenv('CYC_INTERVAL')
     cycledefs = 'prod'
     meta_id = 'save_for_next'
+
+    # WoFS windowed DA cycling: a single save of the first-guess mpasout valid
+    # DA_INTERVAL minutes after the analysis time, marked by fcst_da.done (which
+    # the next cycle's prep_ic waits on).
+    if wofs_windowed():
+        da_interval = int(os.getenv('DA_INTERVAL', '15'))
+        off = min_to_offset(da_interval)  # e.g. 0:15:00
+        dcTaskEnv = {
+            'DA_MARKER': 'fcst_da.done',
+            'FCST_MIN': str(da_interval),
+            'MPASOUT_INTERVAL': os.getenv('MPASOUT_INTERVAL', '1'),
+        }
+        if do_ensemble:
+            ens_size = int(os.getenv('ENS_SIZE', '2'))
+            dcTaskEnv['ENS_SIZE'] = str(ens_size)
+            datadep = ""
+            for i in range(1, ens_size + 1):
+                memdirstr = f'/mem{i:03d}'
+                datadep = datadep + f'''\n    <datadep age="00:00:10"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_fcst_{tok_hm()}_&rrfs_ver;/&WGF;{memdirstr}</cyclestr><cyclestr offset="{off}">/mpasout.@Y-@m-@d_@H.@M.@S.nc.done</cyclestr></datadep>'''
+        else:
+            datadep = f'''\n    <datadep age="00:00:10"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_fcst_{tok_hm()}_&rrfs_ver;/&WGF;</cyclestr><cyclestr offset="{off}">/mpasout.@Y-@m-@d_@H.@M.@S.nc.done</cyclestr></datadep>'''
+        dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{meta_id}".upper()).upper()
+        timedep = ""
+        if os.getenv("REALTIME", "false").upper() == "TRUE":
+            starttime = get_cascade_env("STARTTIME_FCST")
+            timedep = f'\n    <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
+        dependencies = f'''
+  <dependency>
+  <and>{timedep}{datadep}
+  </and>
+  </dependency>'''
+        xml_task(xmlFile, expdir, meta_id, cycledefs, dcTaskEnv, dependencies, command_id="SAVE_FOR_NEXT")
+        return
+
     mpasout_interval = os.getenv('MPASOUT_INTERVAL', '1') or cyc_interval
     mpasout_timelevels = os.getenv('MPASOUT_TIMELEVELS', '') or mpasout_interval
     group_indices = ' '.join(f'{int(i):02d}' for i in mpasout_timelevels.split() if int(i) != 0)
@@ -38,9 +72,9 @@ def save_for_next(xmlFile, expdir, do_ensemble=False, do_spinup=False):
         datadep = ""
         for i in range(1, int(ens_size) + 1):
             memdirstr = f'/mem{i:03d}'
-            datadep = datadep + f'''\n    <datadep age="00:00:10"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_fcst_@H_&rrfs_ver;/&WGF;{memdirstr}</cyclestr><cyclestr offset="#mpasout_fhr#:00:00">/mpasout.@Y-@m-@d_@H.@M.@S.nc.done</cyclestr></datadep>'''
+            datadep = datadep + f'''\n    <datadep age="00:00:10"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_fcst_{tok_hm()}_&rrfs_ver;/&WGF;{memdirstr}</cyclestr><cyclestr offset="#mpasout_fhr#:00:00">/mpasout.@Y-@m-@d_@H.@M.@S.nc.done</cyclestr></datadep>'''
     else:
-        datadep = f'''\n    <datadep age="00:00:10"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_fcst_@H_&rrfs_ver;/&WGF;</cyclestr><cyclestr offset="#mpasout_fhr#:00:00">/mpasout.@Y-@m-@d_@H.@M.@S.nc.done</cyclestr></datadep>'''
+        datadep = f'''\n    <datadep age="00:00:10"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_fcst_{tok_hm()}_&rrfs_ver;/&WGF;</cyclestr><cyclestr offset="#mpasout_fhr#:00:00">/mpasout.@Y-@m-@d_@H.@M.@S.nc.done</cyclestr></datadep>'''
 
     timedep = ""
     realtime = os.getenv("REALTIME", "false")

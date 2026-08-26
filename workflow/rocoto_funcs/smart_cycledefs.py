@@ -1,6 +1,83 @@
 #!/usr/bin/env python
 import os
 import sys
+from datetime import datetime, timedelta
+
+
+def _min_to_hms(total_min):
+    total_min = int(total_min)
+    return f'{total_min // 60:02d}:{total_min % 60:02d}:00'
+
+
+def _window(event_date, start_hhmm, end_hhmm):
+    """Return (start, end) datetimes for an HHMM window anchored on event_date.
+    An end time that is <= the start time rolls over to the next day."""
+    d0 = datetime.strptime(event_date, '%Y%m%d')
+    sh, sm = int(start_hhmm[:2]), int(start_hhmm[2:])
+    eh, em = int(end_hhmm[:2]), int(end_hhmm[2:])
+    start = d0 + timedelta(hours=sh, minutes=sm)
+    end = d0 + timedelta(hours=eh, minutes=em)
+    if end <= start:
+        end += timedelta(days=1)
+    return start, end
+
+
+def _wofs_windowed_cycledefs():
+    """Build cycledefs for WoFS windowed sub-hourly cycling (EVENT_DATE set).
+
+    * prod  : DA cycles every DA_INTERVAL minutes over the DA window
+    * ic     : the single cold-start cycle at DA_STARTTIME
+    * domain : the one-time mesh-creation cycle (== ic)
+    * lbc    : free-forecast launch window (LBCs feed the free forecasts)
+    * free   : free-forecast launches every FREE_FCST_INTERVAL_MIN minutes
+    * da_nocold : prod window minus the cold-start cycle (starts one DA
+                  interval later) so DA is skipped at the cold start.
+    """
+    event_date = os.getenv('EVENT_DATE').strip()
+    da_start_hhmm = os.getenv('DA_STARTTIME', '1500').strip().zfill(4)
+    da_end_hhmm = os.getenv('DA_ENDTIME', '0300').strip().zfill(4)
+    da_interval = int(os.getenv('DA_INTERVAL', '15'))
+    fcst_start_hhmm = os.getenv('FCST_STARTTIME', '1700').strip().zfill(4)
+    fcst_end_hhmm = os.getenv('FCST_ENDTIME', '0300').strip().zfill(4)
+    free_interval = int(os.getenv('FREE_FCST_INTERVAL_MIN', '60'))
+
+    da_start, da_end = _window(event_date, da_start_hhmm, da_end_hhmm)
+    da_stride = _min_to_hms(da_interval)
+    da_nocold_start = da_start + timedelta(minutes=da_interval)
+    fcst_start, fcst_end = _window(event_date, fcst_start_hhmm, fcst_end_hhmm)
+    free_stride = _min_to_hms(free_interval)
+
+    fmt = '%Y%m%d%H%M'
+    cycledef_prod = f'{da_start:{fmt}} {da_end:{fmt}} {da_stride}'
+    cycledef_ic = f'{da_start:{fmt}} {da_start:{fmt}} 24:00:00'
+    cycledef_domain = cycledef_ic
+    cycledef_free = f'{fcst_start:{fmt}} {fcst_end:{fmt}} {free_stride}'
+    # LBCs are generated ONCE per event into a single shared lbc/ directory
+    # (mirroring the reference WoFS run): one cycle anchored at DA_STARTTIME
+    # produces all hourly boundary files spanning the DA + free window.  Every
+    # sub-hourly prod/free cycle then depends on that fixed cycle via a literal
+    # datadep (see prep_lbc.py / prep_lbc_free.py) instead of a whole-hour
+    # metataskdep, which is unsatisfiable for sub-hour and pre-window cycles.
+    cycledef_lbc = f'{da_start:{fmt}} {da_start:{fmt}} 24:00:00'
+    cycledef_nocold = f'{da_nocold_start:{fmt}} {da_end:{fmt}} {da_stride}'
+
+    dcCycledef = {}
+    if os.getenv('DO_CREATE_DOMAIN', 'FALSE').upper() == 'TRUE':
+        dcCycledef['domain'] = f'{cycledef_domain}'
+    if os.getenv('DO_RTMA', 'FALSE').upper() == 'FALSE':
+        dcCycledef['ic'] = f'{cycledef_ic}'
+        dcCycledef['lbc'] = f'{cycledef_lbc}'
+    dcCycledef['prod'] = f'{cycledef_prod}'
+    dcCycledef['free'] = f'{cycledef_free}'
+    # skip DA at the single cold-start cycle
+    do_jedi = os.getenv('DO_JEDI', 'FALSE').upper() == 'TRUE'
+    do_nonvar_cld = os.getenv('DO_NONVAR_CLOUD_ANA', 'FALSE').upper() == 'TRUE'
+    nocoldda = os.getenv('COLDSTART_CYCS_DO_DA', 'TRUE').upper() == 'FALSE'
+    if (do_jedi or do_nonvar_cld) and nocoldda:
+        dcCycledef['da_nocold'] = f'{cycledef_nocold}'
+    if os.getenv('DO_ARCHIVE', 'FALSE').upper() == 'TRUE':
+        dcCycledef['archive'] = f'{cycledef_prod}'
+    return dcCycledef
 
 
 def smart_cycledefs():
@@ -15,7 +92,11 @@ def smart_cycledefs():
         cycledef_prod = os.getenv('CYCLEDEF_PROD', 'not_defined')
         cycledef_spinup = os.getenv('CYCLEDEF_SPINUP', 'not_defined')
         cycledef_recenter = os.getenv('CYCLEDEF_RECENTER', 'not_defined')
+        cycledef_domain = os.getenv('CYCLEDEF_DOMAIN', 'not_defined')
     else:  # compute cycledef automatically if no CYCLEDEF_* environment variables
+        # WoFS windowed sub-hourly mode is fully self-contained
+        if os.getenv('EVENT_DATE', '').strip():
+            return _wofs_windowed_cycledefs()
         lbc_cycs = os.getenv('LBC_CYCS', '00 12').strip().split()
         lbc_step = str(int(24 / len(lbc_cycs)))
         cyc_interval = os.getenv('CYC_INTERVAL', '3')
@@ -40,6 +121,8 @@ def smart_cycledefs():
             cycledef_prod = f'&Y1;&M1;&D1;0000 &Y2;&M2;&D2;2300 {cyc_interval.zfill(2)}:00:00'
             cycledef_recenter = cycledef_ic
             cycledef_spinup = cycledef_prod
+            # single-cycle cycledef for the one-time domain-creation task
+            cycledef_domain = f'&Y1;&M1;&D1;{cold_cycs[0]}00 &Y1;&M1;&D1;{cold_cycs[0]}00 24:00:00'
         # ~~~~~
         # retros write out cycledefs explicitly without referencing XML entities
         else:
@@ -64,6 +147,8 @@ def smart_cycledefs():
             cycledef_ic = f'  {retrodates[0][0:8]}{cold_cyc1}00 {retrodates[1]}00 {ic_step.zfill(2)}:00:00'
             cycledef_lbc = f' {retrodates[0][0:8]}{lbc_cyc1}00 {retrodates[1]}00 {lbc_step.zfill(2)}:00:00'
             cycledef_prod = f'{retrodates[0][0:8]}{prod_cyc1}00 {retrodates[1]}00 {cyc_interval.zfill(2)}:00:00'
+            # single-cycle cycledef for the one-time domain-creation task
+            cycledef_domain = f'{retrodates[0][0:8]}{cold_cyc1}00 {retrodates[0][0:8]}{cold_cyc1}00 24:00:00'
             if recenter:
                 cycledef_recenter = f'{retrodates[0][0:8]}{recenter_cyc1}00 {retrodates[1]}00 {recenter_step.zfill(2)}:00:00'
             if spinup:
@@ -71,6 +156,8 @@ def smart_cycledefs():
     #
     # fill in the Cycledef dictionary
     dcCycledef = {}
+    if os.getenv('DO_CREATE_DOMAIN', 'FALSE').upper() == "TRUE":
+        dcCycledef['domain'] = f'{cycledef_domain}'
     if os.getenv('DO_RTMA', 'FALSE').upper() == 'FALSE':
         dcCycledef['ic'] = f'{cycledef_ic}'
         dcCycledef['lbc'] = f'{cycledef_lbc}'

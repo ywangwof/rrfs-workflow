@@ -93,6 +93,12 @@ case ${task_id} in
     module load "RDAS/${MACHINE}.${COMPILER}"
     export LD_LIBRARY_PATH=${HOMErrfs}/sorc/RDASApp/build/lib64:${LD_LIBRARY_PATH}
     ;;
+  ioda_cwp)
+    module purge
+    module use "${HOMErrfs}/sorc/RDASApp/modulefiles"
+    module load "RDAS/${MACHINE}.${COMPILER}"
+    export LD_LIBRARY_PATH=${HOMErrfs}/sorc/RDASApp/build/lib64:${LD_LIBRARY_PATH}
+    ;;
   nonvar_bufrobs|nonvar_reflobs|nonvar_cldana)
     module purge
     module use "${HOMErrfs}/sorc/RRFS_UTILS/modulefiles"
@@ -102,6 +108,15 @@ case ${task_id} in
     module purge
     module use "${HOMErrfs}/sorc/MPASSIT/modulefiles"
     module load "build.${MACHINE}.${COMPILER}"
+    ;;
+  create_domain)
+    # init_atmosphere_model.x uses the standard rrfs env; project_hexes loads
+    # its own SMIOL module inside the ex-script (subshell). ungrib.x (invariant
+    # stage) also runs under the rrfs env; wgrib2 is loaded for grib2 handling.
+    module purge
+    module load "rrfs/${MACHINE}.${COMPILER}"
+    module load nco
+    module load wgrib2
     ;;
   upp)
     module purge

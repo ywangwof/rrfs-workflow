@@ -413,3 +413,25 @@ fields:
     mpas template field: theta
     mpas identity field: relative_humidity
     mpas io name: relhum
+
+#- **CWP**：`GOESCloudWaterPath` uses `requiredVars()` which contains
+#  `cloud_liquid_water`, `cloud_liquid_ice`, `rain_water` etc，
+#   Those are in the `mpas_hydrometeor_fields`, So trigue the ingestion of
+#  `re_cloud`/`re_ice`/`re_snow` from geoval states
+#
+#- **identity** (copy directly from the MPAS states instead of transforming)
+#
+  - field name: re_cloud
+    mpas template field: theta
+    mpas identity field: re_cloud
+    mpas io name: re_cloud
+
+  - field name: re_ice
+    mpas template field: theta
+    mpas identity field: re_ice
+    mpas io name: re_ice
+
+  - field name: re_snow
+    mpas template field: theta
+    mpas identity field: re_snow
+    mpas io name: re_snow

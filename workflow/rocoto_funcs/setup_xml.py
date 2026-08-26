@@ -3,9 +3,10 @@
 import os
 import stat
 from rocoto_funcs.base import header_begin, header_entities, header_end, \
-    wflow_begin, wflow_log, wflow_cycledefs, wflow_end
+    wflow_begin, wflow_log, wflow_cycledefs, wflow_end, tok_hm, wofs_windowed
 from rocoto_funcs.smart_cycledefs import smart_cycledefs
 from rocoto_funcs.smart_post_groups import smart_post_groups
+from rocoto_funcs.create_domain import create_domain
 from rocoto_funcs.ungrib_ic import ungrib_ic
 from rocoto_funcs.ungrib_lbc import ungrib_lbc
 from rocoto_funcs.ic import ic
@@ -17,6 +18,9 @@ from rocoto_funcs.jedivar import jedivar
 from rocoto_funcs.fcst import fcst
 from rocoto_funcs.smart_ens_groups import smart_ens_groups
 from rocoto_funcs.save_for_next import save_for_next
+from rocoto_funcs.prep_lbc_free import prep_lbc_free
+from rocoto_funcs.fcst_free import fcst_free
+from rocoto_funcs.mpassit_free import mpassit_free
 from rocoto_funcs.getkf import getkf
 from rocoto_funcs.recenter import recenter
 from rocoto_funcs.ensmean import ensmean
@@ -25,6 +29,7 @@ from rocoto_funcs.upp import upp
 from rocoto_funcs.ioda_airnow import ioda_airnow
 from rocoto_funcs.ioda_bufr import ioda_bufr
 from rocoto_funcs.ioda_mrms_refl import ioda_mrms_refl
+from rocoto_funcs.ioda_cwp import ioda_cwp
 from rocoto_funcs.nonvar_bufrobs import nonvar_bufrobs
 from rocoto_funcs.nonvar_reflobs import nonvar_reflobs
 from rocoto_funcs.nonvar_cldana import nonvar_cldana
@@ -48,10 +53,21 @@ def setup_xml(HOMErrfs, expdir):
     do_ensmean_post = os.getenv('DO_ENSMEAN_POST', 'FALSE').upper()
     do_chemistry = os.getenv('DO_CHEMISTRY', 'FALSE').upper()
     #
+    # In WoFS windowed mode the "prod" cycledef is the sub-hourly DA cycle.
+    # mpassit/upp on every DA cycle is off by default (DO_DA_POST) so that
+    # post-processing is reserved for the free forecasts (Phase 3/4).
+    wofs_windowed_mode = os.getenv('EVENT_DATE', '').strip() != ''
+    do_post = os.getenv("DO_POST", "TRUE").upper() == "TRUE"
+    if wofs_windowed_mode:
+        post_da_cycles = do_post and os.getenv("DO_DA_POST", "FALSE").upper() == "TRUE"
+    else:
+        post_da_cycles = do_post
+    #
     # create cycledefs smartly
     dcCycledef = smart_cycledefs()
     # create post groups smartly and update dcCycleDef accordingly
-    if os.getenv("DO_POST", "TRUE").upper() == "TRUE":
+    listPostGrpInfo = []
+    if post_da_cycles:
         listPostGrpInfo = smart_post_groups(dcCycledef)
 
     fPath = f"{expdir}/{NET}.xml"
@@ -60,9 +76,14 @@ def setup_xml(HOMErrfs, expdir):
         header_entities(xmlFile, expdir)
         header_end(xmlFile)
         wflow_begin(xmlFile)
-        log_fpath = f'&LOGROOT;/&RUN;.@Y@m@d/@H/&WGF;/&RUN;.log'
+        log_fpath = f'&LOGROOT;/&RUN;.@Y@m@d/{tok_hm()}/&WGF;/&RUN;.log'
         wflow_log(xmlFile, log_fpath)
         wflow_cycledefs(xmlFile, dcCycledef)
+
+# ---------------------------------------------------------------------------
+# one-time domain creation (must precede every other task)
+        if os.getenv("DO_CREATE_DOMAIN", "FALSE").upper() == "TRUE":
+            create_domain(xmlFile, expdir)
 
 # ---------------------------------------------------------------------------
 # assemble tasks for a deterministic experiment
@@ -74,8 +95,10 @@ def setup_xml(HOMErrfs, expdir):
                 if do_chemistry == "TRUE":
                     ioda_airnow(xmlFile, expdir)
                 ioda_bufr(xmlFile, expdir)
-            if os.getenv("DO_RADAR_REF", "FALSE").upper() == "TRUE":
+            if os.getenv("DO_RADAR_REF", "FALSE").upper() == "TRUE" and not wofs_windowed():
                 ioda_mrms_refl(xmlFile, expdir)
+            if os.getenv("DO_CWP", "FALSE").upper() == "TRUE":
+                ioda_cwp(xmlFile, expdir)
             if os.getenv("DO_NONVAR_CLOUD_ANA", "FALSE").upper() == "TRUE":
                 nonvar_bufrobs(xmlFile, expdir)
                 nonvar_reflobs(xmlFile, expdir)
@@ -121,7 +144,7 @@ def setup_xml(HOMErrfs, expdir):
                 if os.getenv('DO_CYC', 'FALSE').upper() == "TRUE" and os.getenv('DO_RTMA', 'FALSE').upper() == 'FALSE':
                     save_for_next(xmlFile, expdir)
             #
-            if os.getenv("DO_POST", "TRUE").upper() == "TRUE":
+            if post_da_cycles:
                 for index, dcGrpInfo in enumerate(listPostGrpInfo):
                     mpassit(xmlFile, expdir, index, dcGrpInfo)
                     upp(xmlFile, expdir, index, dcGrpInfo)
@@ -144,8 +167,10 @@ def setup_xml(HOMErrfs, expdir):
                 if do_chemistry == "TRUE":
                     ioda_airnow(xmlFile, expdir)
                 ioda_bufr(xmlFile, expdir)
-            if os.getenv("DO_RADAR_REF", "FALSE").upper() == "TRUE":
+            if os.getenv("DO_RADAR_REF", "FALSE").upper() == "TRUE" and not wofs_windowed():
                 ioda_mrms_refl(xmlFile, expdir)
+            if os.getenv("DO_CWP", "FALSE").upper() == "TRUE":
+                ioda_cwp(xmlFile, expdir)
             if os.getenv("DO_NONVAR_CLOUD_ANA", "FALSE").upper() == "TRUE":
                 nonvar_bufrobs(xmlFile, expdir)
                 nonvar_reflobs(xmlFile, expdir)
@@ -174,7 +199,20 @@ def setup_xml(HOMErrfs, expdir):
                 fcst(xmlFile, expdir, do_ensemble=True, dcEnsGrpInfo=dcEnsGrpInfo)
             if os.getenv('DO_CYC', 'FALSE').upper() == "TRUE":
                 save_for_next(xmlFile, expdir, do_ensemble=True)
-            if os.getenv("DO_POST", "TRUE").upper() == "TRUE":
+            # WoFS windowed mode: hourly free (non-DA) forecasts launched from
+            # the DA analysis, with their own free-forecast LBC staging task.
+            if wofs_windowed() and "global" not in MESH_NAME:
+                prep_lbc_free(xmlFile, expdir)
+                free_members = int(os.getenv('FREE_FCST_MEMBERS', os.getenv('ENS_SIZE', '2')))
+                listFreeGrpInfo = smart_ens_groups('fcst_free', ens_size=free_members)
+                for dcEnsGrpInfo in listFreeGrpInfo["group_list"]:
+                    fcst_free(xmlFile, expdir, dcEnsGrpInfo=dcEnsGrpInfo)
+                # Phase 4: post-process the free forecasts with MPASSIT only
+                if os.getenv('DO_FREE_POST', 'TRUE').upper() == "TRUE":
+                    listFreePostGrpInfo = smart_ens_groups('mpassit_free', ens_size=free_members)
+                    for dcEnsGrpInfo in listFreePostGrpInfo["group_list"]:
+                        mpassit_free(xmlFile, expdir, dcEnsGrpInfo=dcEnsGrpInfo)
+            if post_da_cycles:
                 for index, dcGrpInfo in enumerate(listPostGrpInfo):
                     mpassit(xmlFile, expdir, index, dcGrpInfo, do_ensemble=True)
                     upp(xmlFile, expdir, index, dcGrpInfo, do_ensemble=True)

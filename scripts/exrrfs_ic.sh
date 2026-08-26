@@ -19,7 +19,7 @@ lbc_hydrometeors_gfs=false
 if [[ "${prefix}" == "RAP" || "${prefix}" == "HRRR" ]]; then
   nfglevels=51
   nfgsoillevels=9
-elif  [[ "${prefix}" == "RRFS" ]]; then
+elif  [[ "${prefix}" == "RRFS" || "${prefix}" == "RRFSv2X" ]]; then
   nfglevels=66
   nfgsoillevels=9
 elif  [[ "${prefix}" == "GFS" ]]; then
@@ -56,8 +56,8 @@ sed -e "s/@input_stream@/static.nc/" -e "s/@output_stream@/init.nc/" \
 #prepare fix files and ungrib files for init_atmosphere
 #
 ln -snf "${UMBRELLA_UNGRIB_IC_DATA}/${prefix}:${start_time:0:13}" .
-${cpreq} "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.static.nc" static.nc
-${cpreq} "${FIXrrfs}/${MESH_NAME}/graphinfo/${MESH_NAME}.graph.info.part.${NTASKS}" .
+${cpreq} "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.static.nc" static.nc
+${cpreq} "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/graphinfo/${MESH_NAME}.graph.info.part.${NTASKS}" .
 if [[ "${USE_MERRA2^^}" == "TRUE" ]]; then
   ln -snf "${FIXrrfs}/physics/${PHYSICS_SUITE}/QNWFA_QNIFA_MERRA2_MONTHLY.dat" QNWFA_QNIFA_SIGMA_MONTHLY.dat
 else

@@ -6,8 +6,14 @@ cpreq=${cpreq:-cpreq}
 
 cd "${DATA}" || exit 1
 
-# link the prepbufr file
-${cpreq} "${OBSPATH}/${CDATE}.rap.t${cyc}z.prepbufr.tm00" prepbufr
+# link the prepbufr file.  In WoFS windowed mode (EVENT_DATE set, CDATE is the
+# 12-digit YYYYmmddHHMM cycle) the sub-hourly prepbufr comes from a dated
+# PREPBUFR_DIR with the rtma_ru, minute-stamped filename.
+if [[ -n "${EVENT_DATE:-}" ]]; then
+  ${cpreq} "${PREPBUFR_DIR}/${CDATE:0:8}/${CDATE:0:10}.rtma_ru.t${cyc}z.prepbufr.tm00" prepbufr
+else
+  ${cpreq} "${OBSPATH}/${CDATE}.rap.t${cyc}z.prepbufr.tm00" prepbufr
+fi
 cp "${OBSPATH}/${CDATE}.rap.t${cyc}z.gpsipw.tm00.bufr_d" ztdbufr
 cp "${OBSPATH}/${CDATE}.rap.t${cyc}z.satwnd.tm00.bufr_d" satwndbufr
 cp "${OBSPATH}/${CDATE}.rap.t${cyc}z.gsrcsr.tm00.bufr_d" abibufr
@@ -33,6 +39,19 @@ yaml_list=(
 #"bufr2ioda_cris-fsr.yaml"
 )
 
+# In WoFS windowed mode the prepbufr source is the RTMA Rapid-Update surface
+# file (rtma_ru), which only contains surface subsets.  Querying it for the
+# upper-air/aircraft/profiler/RASS/VAD subsets makes bufr2ioda.x abort
+# (eckit::BadValue) and dump a core, so restrict the list to what exists.
+if [[ -n "${EVENT_DATE:-}" ]]; then
+  yaml_list=(
+  "prepbufr_adpsfc.yaml"
+  "prepbufr_ascatw.yaml"
+  "prepbufr_msonet.yaml"
+  "prepbufr_sfcshp.yaml"
+  )
+fi
+
 if (( ${YAML_GEN_METHOD:-1} == 2 )); then
   # Copy empty ioda file to data/obs.
   # Use these as the default when bufr2ioda doesn't create a ioda.
@@ -51,6 +70,10 @@ if (( ${YAML_GEN_METHOD:-1} == 2 )); then
 fi
 
 # run bufr2ioda.x
+# Safety net: bufr2ioda.x aborts (SIGABRT) instead of exiting cleanly when a
+# queried subset is absent; suppress core dumps so those aborts do not leave
+# multi-GB core files behind.
+ulimit -c 0
 for yaml in "${yaml_list[@]}"; do
  sed -e "s/@referenceTime@/${REFERENCE_TIME}/" "${PARMrrfs}/${yaml}" > "${yaml}"
  source prep_step
@@ -143,7 +166,7 @@ ${cpreq} "${USHrrfs}"/offline_ioda_tweak.py .
 ${cpreq} "${USHrrfs}"/offline_vad_thinning.py .
 
 for ioda_file in ioda*nc; do
-  grid_file="${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.static.nc"
+  grid_file="${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.static.nc"
   if [[ "${ioda_file}" == *abi* && "${ioda_file}" != *satwnd* ]]; then
     echo " ${ioda_file} ioda file detected: running offline_domain_check_satrad.py"
     ./offline_domain_check_satrad.py -o "${ioda_file}" -g "${grid_file}" -s 0.005

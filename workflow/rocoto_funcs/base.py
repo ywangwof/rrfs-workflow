@@ -6,6 +6,36 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
+# --- WoFS windowed sub-hourly cycling helpers (Phase 1) --------------------
+# When EVENT_DATE is set the workflow runs in "WoFS windowed" mode and every
+# per-cycle path/label token must carry minute resolution (@H@M) so that
+# sub-hourly cycles do not collide. When EVENT_DATE is empty these helpers
+# return the exact legacy tokens, keeping existing experiments byte-identical.
+def wofs_windowed():
+    return os.getenv('EVENT_DATE', '').strip() != ''
+
+
+def tok_hm():
+    """Cycle hour(+minute) token used in directory names and labels."""
+    return '@H@M' if wofs_windowed() else '@H'
+
+
+def tok_cdate():
+    """CDATE token (analysis time)."""
+    return '@Y@m@d@H@M' if wofs_windowed() else '@Y@m@d@H'
+
+
+def tok_reftime():
+    """JEDI/obs REFERENCE_TIME token."""
+    return '@Y-@m-@dT@H:@M:00Z' if wofs_windowed() else '@Y-@m-@dT@H:00:00Z'
+
+
+def min_to_offset(total_min):
+    """Minutes -> Rocoto '[-]H:MM:SS' style offset magnitude (no sign)."""
+    total_min = int(total_min)
+    return f'{total_min // 60}:{total_min % 60:02d}:00'
+
+
 def source(bash_file, optional=False):
     """
     Source a Bash file and capture the environment variables
@@ -71,6 +101,45 @@ def header_entities(xmlFile, expdir):
     wgf = os.getenv('WGF', 'det')
     cyc_interval = os.getenv('CYC_INTERVAL', '3')
     realtime = os.getenv("REALTIME", "false").upper()
+    # WoFS windowed mode -> minute-aware per-cycle tokens (byte-identical when off)
+    hm = tok_hm()
+    cdate_fmt = tok_cdate()
+    if wofs_windowed():
+        cyc_min_envar = '\n<envar><name>cyc_min</name><value><cyclestr>@M</cyclestr></value></envar>'
+        # WoFS DA-cycle knobs consumed by the job scripts (fcst, prep_lbc, ...)
+        # at runtime.  The jobs do not source the experiment config, so these
+        # must be carried explicitly in task_common_vars.
+        event_date = os.getenv('EVENT_DATE', '').strip()
+        da_interval = os.getenv('DA_INTERVAL', '15').strip()
+        # The DA-cycle first-guess forecast spans exactly one DA_INTERVAL, so the
+        # forecast length (DA_FCST_SECONDS, consumed by the job scripts) is derived
+        # directly from DA_INTERVAL - the single source of truth for the cadence.
+        da_fcst_seconds = f'{int(da_interval) * 60}'
+        extinvl_hrs = os.getenv('EXTINVL_HRS', '1').strip()
+        mrms_all_dir = os.getenv('MRMS_ALL_DIR', '').strip()
+        mrms_clear_dir = os.getenv('MRMS_CLEAR_DIR', '').strip()
+        vr_dir = os.getenv('VR_DIR', '').strip()
+        obs_cwp_dir = os.getenv('OBS_CWP_DIR', '').strip()
+        # Per-event domain directory under COM (Approach A): each WoFS case has
+        # its own mesh, so create_domain writes here and every downstream task
+        # reads the mesh from here instead of the shared ${FIXrrfs}/${MESH_NAME}.
+        # Anchored on EVENT_DATE (not the cycle) so all cycles of the event -
+        # including post-midnight ones - resolve the same domain.
+        mesh_rrfs = f'&COMROOT;/{net}/{rrfs_ver}/{run}.{event_date}/domain/{mesh_name}'
+        wofs_envar = (
+            f'\n<envar><name>EVENT_DATE</name><value>{event_date}</value></envar>'
+            f'\n<envar><name>DA_INTERVAL</name><value>{da_interval}</value></envar>'
+            f'\n<envar><name>DA_FCST_SECONDS</name><value>{da_fcst_seconds}</value></envar>'
+            f'\n<envar><name>EXTINVL_HRS</name><value>{extinvl_hrs}</value></envar>'
+            f'\n<envar><name>MRMS_ALL_DIR</name><value>{mrms_all_dir}</value></envar>'
+            f'\n<envar><name>MRMS_CLEAR_DIR</name><value>{mrms_clear_dir}</value></envar>'
+            f'\n<envar><name>VR_DIR</name><value>{vr_dir}</value></envar>'
+            f'\n<envar><name>OBS_CWP_DIR</name><value>{obs_cwp_dir}</value></envar>'
+            f'\n<envar><name>MESHrrfs</name><value>{mesh_rrfs}</value></envar>'
+        )
+    else:
+        cyc_min_envar = ''
+        wofs_envar = ''
 
     if os.getenv('DO_CHEMISTRY', 'FALSE').upper() == "TRUE":
         chem_envar = "\n<envar><name>DO_CHEMISTRY</name><value>TRUE</value></envar>"
@@ -130,17 +199,17 @@ def header_entities(xmlFile, expdir):
 <envar><name>COMROOT</name><value>&COMROOT;</value></envar>
 <envar><name>DATAROOT</name><value><cyclestr>&DATAROOT;/@Y@m@d</cyclestr></value></envar>
 <envar><name>COMINrrfs</name><value>&COMROOT;/{net}/{rrfs_ver}</value></envar>
-<envar><name>COMOUT</name><value><cyclestr>&COMROOT;/{net}/{rrfs_ver}/{run}.@Y@m@d/@H</cyclestr></value></envar>
-<envar><name>CDATE</name><value><cyclestr>@Y@m@d@H</cyclestr></value></envar>
+<envar><name>COMOUT</name><value><cyclestr>&COMROOT;/{net}/{rrfs_ver}/{run}.@Y@m@d/{hm}</cyclestr></value></envar>
+<envar><name>CDATE</name><value><cyclestr>{cdate_fmt}</cyclestr></value></envar>
 <envar><name>PDY</name><value><cyclestr>@Y@m@d</cyclestr></value></envar>
-<envar><name>cyc</name><value><cyclestr>@H</cyclestr></value></envar>
+<envar><name>cyc</name><value><cyclestr>{hm}</cyclestr></value></envar>{cyc_min_envar}
 <envar><name>NET</name><value>{net}</value></envar>
 <envar><name>RUN</name><value>{run}</value></envar>
 <envar><name>rrfs_ver</name><value>{rrfs_ver}</value></envar>
 <envar><name>MPI_RUN_CMD</name><value>{mpi_run_cmd}</value></envar>
 <envar><name>MESH_NAME</name><value>{mesh_name}</value></envar>
 <envar><name>WGF</name><value>{wgf}</value></envar>
-<envar><name>CYC_INTERVAL</name><value>{cyc_interval}</value></envar>{chem_envar}
+<envar><name>CYC_INTERVAL</name><value>{cyc_interval}</value></envar>{chem_envar}{wofs_envar}
 "
 >{entities_for_cycledef}
 '''
@@ -340,8 +409,8 @@ def xml_task(
         command_id = meta_id
     dcTaskRes = {
         'command': f'&HOMErrfs;/workflow/sideload/launch.sh JRRFS_' + f'{command_id}'.upper(),
-        'join': f'&LOGROOT;/{RUN}.@Y@m@d/@H/{WGF}/{RUN}_{task_id}_{TAG}_@Y@m@d@H.log',
-        'jobname': f'{TAG}_{task_id}_c@H',
+        'join': f'&LOGROOT;/{RUN}.@Y@m@d/{tok_hm()}/{WGF}/{RUN}_{task_id}_{TAG}_{tok_cdate()}.log',
+        'jobname': f'{TAG}_{task_id}_c{tok_hm()}',
         'account': get_cascade_env(f'ACCOUNT_{task_id}'.upper()),
         'queue': get_cascade_env(f'QUEUE_{task_id}'.upper()),
         'partition': get_cascade_env(f"PARTITION_{task_id}".upper()),

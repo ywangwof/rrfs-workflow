@@ -8,6 +8,13 @@ prepend_path("MODULEPATH", "/contrib/spack-stack/spack-stack-1.9.1/envs/ue-oneap
 load("stack-oneapi/2024.2.1")
 load("stack-intel-oneapi-mpi/2021.13")
 
+load("intel-oneapi-mkl/2024.2.1")
+load("py-netcdf4")
+load("py-certifi")
+load("py-matplotlib")
+load("py-jinja2")
+load("py-cartopy")
+
 load("cmake/3.27.9")
 load("parallel-netcdf/1.12.3")
 load("parallelio/2.6.2")

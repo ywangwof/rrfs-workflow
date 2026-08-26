@@ -1,0 +1,304 @@
+#!/usr/bin/env bash
+# Aloha! This file is to setup some top level experiment options
+#
+# shellcheck disable=all
+export NET=wofsv2                    # rrfs, rtma, 
+export MESH_NAME=wofs_mpas           # conus12km, conus3km, na12km, etc
+export WGF="enkf"   # working group function = "det", "enkf", "ens", "firewx"
+export EXP_NAME=wofs_test
+export VERSION=$(cat ./VERSION)
+export TAG=e3km
+export OPSROOT=/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/${EXP_NAME}
+export EXPDIR=${OPSROOT}/exp/${NET}
+export COMROOT=${OPSROOT}/com      # task input and output data as well as logs
+export DATAROOT=${OPSROOT}/stmp    # task workdirs ($DATA) which to be removed immediately upon task completion unless KEEPDATA=YES
+#
+# ============================================================================
+# Domain creation (Phase 0): the wofs_mpas mesh is built on the fly by the
+# create_domain task using project_hexes (grid) + init_atmosphere (static).
+# These DOMAIN_* knobs drive namelist.projections and the derived MPASSIT grid
+# (see workflow/config_resources/config.meshdep). DOMAIN_* MUST be set here
+# because config.meshdep is sourced before config.base.
+# ============================================================================
+export DO_CREATE_DOMAIN=true          # build the mesh before any cycle runs
+export DOMAIN_CEN_LAT=42.94924        # central latitude of the domain
+export DOMAIN_CEN_LON=-90.41793       # central longitude of the domain
+export DOMAIN_SIZE_KM=900             # square domain edge length (km)
+export DOMAIN_DX_KM=3                 # cell spacing / resolution (km)
+export DOMAIN_STD_PAR1=30.0           # Lambert standard parallel 1
+export DOMAIN_STD_PAR2=60.0           # Lambert standard parallel 2
+export DOMAIN_EARTH_RADIUS_KM=6378.14
+export DOMAIN_STATIC_NTASKS=96        # MPI tasks for the init_atmosphere static step
+export DOMAIN_GRAPH_PARTS="48 96 384 768 800 1600"   # gpmetis partition counts to pre-generate
+export DOMAIN_GEOG_DATA_PATH="/scratch3/NAGAPE/wof/ywang/MPAS-WoFS/WPS_GEOG/"
+export GPMETIS="/scratch3/NAGAPE/wof/ywang/tools/bin/gpmetis"
+# project_hexes is built against the workflow rrfs environment
+# (modulefiles/rrfs), which the create_domain job already loads, so no
+# separate SMIOL module swap is needed.
+#
+# Invariant stage: build <mesh>.invariant.nc_L<nlevel>_<prefix> from an external
+# GRIB2 record (met interpolation) for the JEDI/fcst/MPASSIT tasks.
+export DO_DOMAIN_INVARIANT=true
+export DOMAIN_INVARIANT_PREFIX=RRFSv2X
+export DOMAIN_INVARIANT_GRIB2="/scratch3/BMC/nrtrr/RRFSv2X_retro/com/rrfs/v2.1.4/rrfs.20260417/14/upp/enkf/mem001/rrfs.t14z.natlev.f001.conus.grib2"
+export DOMAIN_INVARIANT_VTABLE=RRFSv2X   # parm/create_domain/Vtable.RRFSv2X
+#
+export DO_ENSEMBLE=true
+#export DO_ENSMEAN_POST=true
+export IC_ONLY=false  # interpolate GEFS/GDAS to the target mesh to provide ensemble BEC
+export DO_DETERMINISTIC=false
+export ENS_SIZE=30
+export ZETA_LEVELS="L60.txt"
+#
+export USE_MERRA2=false  # false: default GOCART aerosol climatology; true: MERRA2 aerosol climatology
+#
+export DO_IODA=true
+export DO_JEDI=true
+# WoFS uses the LETKF template (parm/wofs_letkf.yaml); it is installed as
+# config/getkf.yaml so the getkf observer/solver/post runtime is unchanged.
+export GETKF_YAML="wofs_letkf.yaml"
+# WoFS-specific convinfo template (parm/wofs_convinfo), installed as config/convinfo.
+export CONVINFO="wofs_convinfo"
+# LETKF assimilation window is PT60M (analysis +/- 30min), matching run_dacycles.sh.
+export DA_WINDOW_HALF_MIN=30
+# Microphysics scheme for MP-dependent DA state/increment variables (and CWP hail
+# operator): mp_nssl2m | mp_tempo | mp_thompson (see ush/yaml_finalize).
+export MP_SCHEME="mp_tempo"
+export DO_NONVAR_CLOUD_ANA=false
+export COLDSTART_CYCS_DO_DA=false
+export DO_RECENTER=false
+export DO_RADAR_REF=true
+export SAVE_GETKF_ANL=true
+export DO_CLEAN=false
+export RADARREFL_TIMELEVEL="00"  # 00 15 30 45 min
+export SAT_USELIST=""  # check config.base on how to set up this variable
+
+export DO_CYC=true
+export CYC_INTERVAL=6         # inert in WoFS mode (cycling uses DA_INTERVAL); kept for non-WoFS diff-comparability
+for i in {0..23};    do arr[$i]="03"; done # 3hr fcst
+for i in {0..23..6}; do arr[$i]="06"; done # 6hr fcst every 6hrs
+# FCST_LEN_HRS_CYCLES: inert in WoFS mode. DA-cycle length comes from
+# DA_INTERVAL (the DA first-guess spans one interval) and free-forecast length
+# from FREE_FCST_LEN_HRS; the smart_post_groups 24-entry check is skipped
+# (DO_DA_POST=FALSE). Kept defined for non-WoFS diff-comparability.
+export FCST_LEN_HRS_CYCLES="${arr[*]}"
+
+export HISTORY_INTERVAL=1     # inert in WoFS mode (fcst uses HISTORY_INTERVAL_MIN / FREE_OUTPUT_INTERVAL_MIN)
+export MPASOUT_TIMELEVELS="0 6"  # inert in WoFS mode (fcst forces MPASOUT_TIMELEVELS="" for DA and free cycles)
+export POST_GROUP_TOT_NUM=2 # num of groups, the final group absorbs leftovers, the first group contains the extra f000h file
+
+export IC_OFFSET=1        # sole driver of the external IC: rocoto's cyclestr offset
+                         # rolls rrfs.@Y@m@d/@H back IC_OFFSET hours (date-correct across
+                         # midnight, i.e. the equivalent of `date -d "@Y@m@d@H -IC_OFFSET hour"`),
+                         # and the ungrib fhr loop selects f%03d(IC_OFFSET).  So at the 1500
+                         # cold start IC_OFFSET=1 -> t14z f001, valid at 1500.
+export LBC_OFFSET=3       # sole driver of the external LBC cycle: rocoto's cyclestr offset
+                         # rolls rrfs.@Y@m@d/@H back LBC_OFFSET hours (date-correct across
+                         # midnight, like `date -d "@Y@m@d@H -LBC_OFFSET hour"`), and the ungrib
+                         # fhr loop starts at f%03d(LBC_OFFSET).  So at the 1500 cold start
+                         # LBC_OFFSET=3 -> t12z, first boundary f003 valid at 1500.
+export LBC_LENGTH=18      # hourly boundaries valid 1500 .. 0900(+1d): covers the
+                         # DA window (1500->0300) and free forecasts (->0900)
+export LBC_INTERVAL=1     # hourly boundary files; MPAS interpolates between them
+export LBC_UNGRIB_GROUP_TOTAL_NUM=2
+export LBC_GROUP_TOTAL_NUM=2
+
+# --- Legacy (hourly retro) knobs -----------------------------------------
+# In WoFS windowed mode (EVENT_DATE set) these are bypassed:
+#   * RETRO_PERIOD   : only read by the legacy retro cycledef branch, which is
+#                      skipped by the EVENT_DATE early-return in smart_cycledefs.
+#   * COLDSTART_CYCS : overridden by DA_STARTTIME in prep_ic.py and fcst.py.
+# Kept only so this exp stays diff-comparable with the non-WoFS experiments.
+export RETRO_PERIOD="2024052700-2024052800"
+export COLDSTART_CYCS="00"   # cycles to cold start from external models
+# LBC_CYCS is likewise bypassed for cycledefs, but config.base still derives
+# PREP_LBC_LOOK_BACK_HRS from it. We set that explicitly below, which makes
+# LBC_CYCS fully inert in WoFS mode.
+export LBC_CYCS="00 06 12 18"
+export PREP_LBC_LOOK_BACK_HRS=5   # hours prep_lbc searches back for LBC source files
+
+# --- WoFS windowed sub-hourly cycling (Phase 1) ---------------------------
+# When EVENT_DATE is non-empty the workflow runs in "WoFS windowed" mode:
+#   * DA/prod cycles run every DA_INTERVAL minutes over [DA_STARTTIME,DA_ENDTIME]
+#   * free forecasts launch every FREE_FCST_INTERVAL_MIN minutes over
+#     [FCST_STARTTIME,FCST_ENDTIME]
+# All times are HHMM (UTC); an end time <= its start time rolls to the next day.
+# Leave EVENT_DATE empty to fall back to the legacy RETRO_PERIOD hourly logic.
+export EVENT_DATE="20260417"      # YYYYmmdd of the WoFS event
+export DA_STARTTIME="1500"        # HHMM, first (cold-start) DA/prod cycle
+export DA_ENDTIME="0300"          # HHMM, last DA/prod cycle (next day if <= start)
+export DA_INTERVAL=15             # minutes between DA/prod cycles; also sets the DA first-guess forecast length (-> DA_FCST_SECONDS)
+# Sub-hourly prepbufr obs for the DA/prod cycles.  In WoFS windowed mode the
+# prepbufr file for a cycle valid YYYYmmddHHMM is
+#   ${PREPBUFR_DIR}/YYYYmmdd/YYYYmmddHH.rtma_ru.tHHMMz.prepbufr.tm00
+export PREPBUFR_DIR="/scratch3/NAGAPE/wof/kknopfmeier/PB"
+# Pre-staged IODA MRMS reflectivity obs for the DA/prod cycles.  In WoFS
+# windowed mode the ioda_mrms_refl task is NOT run; instead the DA reads the
+# pre-generated file for a cycle valid YYYYmmddHHMM from
+#   ${MRMS_ALL_DIR}/YYYYmmdd/ioda_mrms_YYYYmmdd_HHMM.nc4
+export MRMS_ALL_DIR="/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/MRMS_ALL"
+# Pre-staged IODA clear-sky reflectivity (refl10cm_clear obs space), valid
+# YYYYmmddHHMM, from
+#   ${MRMS_CLEAR_DIR}/YYYYmmdd/ioda_mrms_YYYYmmdd_HHMM_clear.nc4
+export MRMS_CLEAR_DIR="/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/MRMS_ALL"
+# Pre-staged IODA radar radial velocity (rw obs space), valid YYYYmmddHHMM, from
+#   ${VR_DIR}/YYYYmmdd/ioda_VR_YYYYmmdd_HHMM.nc4
+export VR_DIR="/scratch3/NAGAPE/wof/kknopfmeier/VR"
+# GOES cloud-water-path (CWP) assimilation.  When DO_CWP=true the ioda_cwp task
+# converts the raw GOES CWP netCDF for each DA cycle into the cwp/lwp/iwp (and
+# _night) IODA obs consumed by the getkf DA.  The raw file valid YYYYmmddHHMM is
+#   ${OBS_CWP_DIR}/YYYYmmdd/YYYYmmddHHMM_GOES19_CWP_OBS.nc
+export DO_CWP=true
+export OBS_CWP_DIR="/scratch3/NAGAPE/wof/kknopfmeier/CWP"
+export FCST_STARTTIME="1700"      # HHMM, first free-forecast launch
+export FCST_ENDTIME="0300"        # HHMM, last free-forecast launch (next day if <= start)
+export FREE_FCST_INTERVAL_MIN=60  # minutes between free-forecast launches
+export DO_DA_POST=false           # run mpassit/upp on every DA cycle? (default off)
+export EXTINVL_HRS=1              # cadence (hours) of the external-model LBC files;
+                                  # DA-cycle LBCs are time-interpolated from these
+# --- WoFS free forecasts (Phase 3) ----------------------------------------
+# Free (non-DA) forecasts launch on the `free` cycledef from each DA analysis
+# and run FREE_FCST_LEN_HRS hours for the first FREE_FCST_MEMBERS members.
+export FREE_FCST_LEN_HRS=6         # length (hours) of each free forecast
+export FREE_FCST_MEMBERS=18        # number of members that run free forecasts
+export FREE_OUTPUT_INTERVAL_MIN=5  # free-forecast output cadence (minutes) for
+                                   # history/diag/mpasout and the MPASSIT post
+export DO_FREE_POST=true           # run mpassit on the free forecasts (Phase 4)
+#
+#export DO_PYDAMONITOR=true
+#export DO_GRAPHICS=true
+#export GRAPHICS_TILES="full NE NC NW SE SC SW EastCO"
+#export DO_ARCHIVE=true
+#export ARCHIVE_INTERVAL=3  # run the archive task every several hours
+#export ARCHIVE_HPSSDIR="/5year/BMC/wrfruc/Guoqing.Ge/${EXP_NAME}"
+#export ARCHIVE_COM1_SPEC='{"include":"ioda*, jedivar, nonvar*, fcst, upp, pyDAmonitor, graphics", "exclude":""}'  # use " inside and ' outside
+#export ARCHIVE_STMP=''  # eg. 'fcst,mpassit'  # archive files under the given task umbrella directories
+#export ARCHIVE_STMP_INTERVAL='1'  # ARCHIVE_STMP_INTERVAL must divide ARCHIVE_INTERVAL evenly
+#
+export NODES_IC="<nodes>40:ppn=40</nodes>"
+export NODES_LBC="<nodes>40:ppn=40</nodes>"
+export NODES_FCST="<nodes>40:ppn=40</nodes>"
+export NODES_MPASSIT="<nodes>4:ppn=20</nodes>"
+export NODES_UPP="<nodes>4:ppn=20</nodes>"
+export NODES_GETKF="<nodes>80:ppn=10</nodes>"
+export NODES_RECENTER="<nodes>2:ppn=16</nodes>"
+export NODES_IODA_MRMS_REFL="<nodes>1:ppn=40</nodes>"
+export NODES_IODA_CWP="<nodes>1:ppn=6</nodes>"
+#
+export WALLTIME_FCST="2:00:00"
+export WALLTIME_MPASSIT="2:00:00"
+export WALLTIME_UPP="2:00:00"
+export WALLTIME_GETKF="00:30:00"
+#
+export KEEPDATA=YES
+export TASKTHROTTLE=60
+#
+# local.setup: setup some local options specific to a platform or an experiment
+#
+# set up IC, LBC sources and A/Q/P/R information
+# External model source: RRFSv2X retro (RRFS natlev grib2, per-member enkf files).
+#   IC : rrfs.<YYYYmmdd>/<HH>/upp/enkf/mem<MMM>/rrfs.t<HH>z.natlev.f<HHH>.conus.grib2  (30 members)
+#        where <HH> = cold-start hour - IC_OFFSET and <HHH> = IC_OFFSET, valid at the cold start.
+#   LBC: rrfs.<YYYYmmdd>/<HH>/upp/enkf/mem<MMM>/rrfs.t<HH>z.natlev.f<HHH>.conus.grib2   (10 members)
+#        where <HH> = cold-start hour - LBC_OFFSET and <HHH> ranges LBC_OFFSET..LBC_OFFSET+LBC_LENGTH.
+# <MMM> is the 3-digit member (#ens_index#); <YYYYmmdd>/<HH> are filled by rocoto cyclestr
+# (with the -IC_OFFSET / -LBC_OFFSET :00:00 offset), which rolls the date back correctly past midnight.
+export EXTRN_MDL_BASEDIR="/scratch3/BMC/nrtrr/RRFSv2X_retro/com/rrfs/v2.1.4"
+export EXTRN_LBC_MEMBERS=10           # number of RRFSv2X members available for LBC
+export LBC_ENS_SIZE=${EXTRN_LBC_MEMBERS}  # forecast member N draws LBCs from external
+                                          # member ((N-1) mod LBC_ENS_SIZE)+1 (round-robin)
+export IC_EXTRN_MDL_NAME="RRFSv2X"
+# @H / t@Hz are the external IC cycle hour = cold-start hour - IC_OFFSET (rocoto cyclestr
+# applies the -IC_OFFSET:00:00 offset); f^HHH^ is the lead, filled with IC_OFFSET at runtime.
+export IC_EXTRN_MDL_FILENAME_PATTERN="rrfs.@Y@m@d/@H/upp/enkf/mem#ens_index#/rrfs.t@Hz.natlev.f^HHH^.conus.grib2"
+export IC_EXTRN_MDL_FILENAME_PATTERN_B=""
+export LBC_EXTRN_MDL_NAME=${IC_EXTRN_MDL_NAME}
+# @H / t@Hz are the external LBC cycle hour = cold-start hour - LBC_OFFSET (rocoto cyclestr
+# applies the -LBC_OFFSET:00:00 offset); f^HHH^ is the lead, looped LBC_OFFSET..+LBC_LENGTH at runtime.
+export LBC_EXTRN_MDL_FILENAME_PATTERN="rrfs.@Y@m@d/@H/upp/enkf/mem#lbc_mem#/rrfs.t@Hz.natlev.f^HHH^.conus.grib2"
+export LBC_EXTRN_MDL_FILENAME_PATTERN_B=""
+case ${MACHINE} in
+  "hera")
+    export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
+    export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
+    export OBSPATH="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/obs_rap"
+    export OBSPATH_NSSLMOSIAC="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/reflectivity"
+    export OBSPATH_AIRNOW="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/airnow"
+    export ACCOUNT="wrfruc"
+    export QUEUE="batch"
+    export PARTITION="hera"
+    ;;
+  "ursa")
+    export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
+    export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
+    export OBSPATH="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/obs_rap"
+    export OBSPATH_NSSLMOSIAC="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/reflectivity"
+    export OBSPATH_AIRNOW="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/airnow"
+    export ACCOUNT="wof"
+    export QUEUE="batch"
+    export PARTITION="u1-compute"
+    export NODES_CREATE_DOMAIN="<nodes>1:ppn=96</nodes>"
+    export NODES_IC="<nodes>2:ppn=48</nodes>"
+    export NODES_LBC="<nodes>2:ppn=48</nodes>"
+    # WoFS forward forecast (DA-cycle fcst and free fcst): 96 MPI ranks
+    # (matches graph.info.part.96) across 2 exclusive nodes.
+    export NODES_FCST="<nodes>2:ppn=48</nodes>"
+    export NODES_MPASSIT="<nodes>2:ppn=48</nodes>"
+    export NODES_UPP="<nodes>2:ppn=48</nodes>"
+    export NODES_RECENTER="<nodes>1:ppn=32</nodes>"
+    export NODES_GETKF="<nodes>2:ppn=48</nodes>"
+    # WoFS getkf: 96 MPI ranks (matches graph.info.part.96) across 2 exclusive nodes.
+    ;;
+  "orion"|"hercules")
+    export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
+    export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
+    export OBSPATH="/work2/noaa/wrfruc/RRFS2_RETRO_DATA/May2024/obs_rap"
+    export OBSPATH_NSSLMOSIAC="/work2/noaa/wrfruc/RRFS2_RETRO_DATA/May2024/reflectivity"
+    export OBSPATH_AIRNOW="/work2/noaa/wrfruc/RRFS2_RETRO_DATA/May2024/airnow"
+    export ACCOUNT="wrfruc"
+    export QUEUE="batch"
+    export PARTITION=${MACHINE}
+    export CLUSTER=""
+    if [[ "${MACHINE}" == "hercules" ]]; then
+      export NODES_IC="<nodes>20:ppn=80</nodes>"
+      export NODES_LBC="<nodes>20:ppn=80</nodes>"
+      export NODES_FCST="<nodes>20:ppn=80</nodes>"
+      export NODES_MPASSIT="<nodes>2:ppn=80</nodes>"
+      export NODES_UPP="<nodes>1:ppn=80</nodes>"
+      export NODES_GETKF="<nodes>40:ppn=20</nodes>"
+      export NODES_RECENTER="<nodes>1:ppn=32</nodes>"
+    fi
+    ;;
+  "gaeac6")
+    export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
+    export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
+    export OBSPATH="/gpfs/f6/bil-fire10-oar/world-shared/RRFS2_RETRO_DATA/May2024/obs_rap"
+    export OBSPATH_NSSLMOSIAC="/gpfs/f6/bil-fire10-oar/world-shared/RRFS2_RETRO_DATA/May2024/reflectivity"
+    export OBSPATH_AIRNOW="/gpfs/f6/bil-fire10-oar/world-shared/RRFS2_RETRO_DATA/May2024/airnow"
+    export ACCOUNT="bil-fire10-oar"
+    export QUEUE="normal"
+    export PARTITION="batch"
+    export CLUSTER="c6"
+    export NODES_IC="<nodes>10:ppn=160</nodes>"
+    export NODES_LBC="<nodes>10:ppn=160</nodes>"
+    export NODES_FCST="<nodes>10:ppn=160</nodes>"
+    export NODES_MPASSIT="<nodes>1:ppn=160</nodes>"
+    export NODES_UPP="<nodes>1:ppn=80</nodes>"
+    export NODES_RECENTER="<nodes>1:ppn=32</nodes>"
+    export NODES_GETKF="<nodes>20:ppn=40</nodes>"
+    ;;
+  "wcoss2")
+    export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
+    export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
+    export OBSPATH="/lfs/h2/emc/lam/noscrub/RRFS2_RETRO_DATA/May2024/obs_rap"
+    export OBSPATH_NSSLMOSAIC="/lfs/h2/emc/lam/noscrub/RRFS2_RETRO_DATA/May2024/reflectivity"
+    export OBSPATH_AIRNOW="/lfs/h2/emc/lam/noscrub/RRFS2_RETRO_DATA/May2024/airnow"
+    export ACCOUNT="RRFS-DEV"
+    export QUEUE="dev"
+    export PARTITION=""
+    export CLUSTER=""
+    ;;
+  *)
+    echo "!!! unsupported platform:'${MACHINE}'!!!"
+    ;;
+esac

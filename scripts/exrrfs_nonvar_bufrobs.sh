@@ -14,7 +14,7 @@ cd "${DATA}" || exit 1
 #-----------------------------------------------------------------------
 #
 
-meshgriddir="${FIXrrfs}/${MESH_NAME}"
+meshgriddir="${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}"
 echo "INFO: meshgriddir is ${meshgriddir}"
 
 ${cpreq} "${meshgriddir}"/"${MESH_NAME}".grid.nc mesh.nc
@@ -120,7 +120,13 @@ ${cpreq} LightningInMPAS.dat "${COMOUT}/nonvar_bufrobs/${WGF}/LightningInMPAS.da
 #-----------------------------------------------------------------------
 #
 
-${cpreq} "${OBSPATH}/${CDATE}.rap.t${cyc}z.prepbufr.tm00" prepbufr
+# In WoFS windowed mode (EVENT_DATE set) the sub-hourly prepbufr comes from a
+# dated PREPBUFR_DIR with the rtma_ru, minute-stamped filename.
+if [[ -n "${EVENT_DATE:-}" ]]; then
+  ${cpreq} "${PREPBUFR_DIR}/${CDATE:0:8}/${CDATE:0:10}.rtma_ru.t${cyc}z.prepbufr.tm00" prepbufr
+else
+  ${cpreq} "${OBSPATH}/${CDATE}.rap.t${cyc}z.prepbufr.tm00" prepbufr
+fi
 
 cat << EOF > namelist.metarcld
  &setup

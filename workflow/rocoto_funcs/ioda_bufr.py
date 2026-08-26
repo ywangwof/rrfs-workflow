@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env
+from rocoto_funcs.base import xml_task, get_cascade_env, wofs_windowed
 
 # begin of ioda_bufr --------------------------------------------------------
 
@@ -10,6 +10,10 @@ def ioda_bufr(xmlFile, expdir):
     cycledefs = 'prod'
     if os.getenv("DO_SPINUP", "FALSE").upper() == "TRUE":
         cycledefs = 'prod,spinup'
+    # WoFS: no DA runs at the cold start, so obs prep is unnecessary there; run
+    # on the da_nocold cycledef (which skips DA_STARTTIME) like the getkf tasks.
+    if os.getenv('EVENT_DATE', '').strip() and os.getenv('COLDSTART_CYCS_DO_DA', 'TRUE').upper() == 'FALSE':
+        cycledefs = 'da_nocold'
     OBSPATH = os.getenv("OBSPATH", 'OBSPATH_not_defined')
     # Task-specific EnVars beyond the task_common_vars
     dcTaskEnv = {
@@ -19,8 +23,14 @@ def ioda_bufr(xmlFile, expdir):
     }
 
     dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{task_id}".upper()).upper()
-    # dependencies
-    fpath = f'{OBSPATH}/@Y@m@d@H.rap.t@Hz.prepbufr.tm00'
+    # dependencies: in WoFS windowed mode the sub-hourly prepbufr comes from a
+    # dated PREPBUFR_DIR with an rtma_ru, minute-stamped filename.
+    if wofs_windowed():
+        prepbufr_dir = os.getenv("PREPBUFR_DIR", 'PREPBUFR_DIR_not_defined')
+        dcTaskEnv['PREPBUFR_DIR'] = f'{prepbufr_dir}'
+        fpath = f'{prepbufr_dir}/@Y@m@d/@Y@m@d@H.rtma_ru.t@H@Mz.prepbufr.tm00'
+    else:
+        fpath = f'{OBSPATH}/@Y@m@d@H.rap.t@Hz.prepbufr.tm00'
 
     timedep = ""
     realtime = os.getenv("REALTIME", "false")

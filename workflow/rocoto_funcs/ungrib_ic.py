@@ -67,6 +67,12 @@ def ungrib_ic(xmlFile, expdir, do_ensemble=False):
         starttime = get_cascade_env(f"STARTTIME_{task_id}".upper())
         timedep = f'\n    <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
     #
+    # gate on the one-time domain build (fix mesh must exist before ic/lbc use it)
+    domaindep = ""
+    if os.getenv("DO_CREATE_DOMAIN", "FALSE").upper() == "TRUE":
+        domaindep = '\n    <datadep age="00:00:10">&HOMErrfs;/fix/' \
+            + os.getenv("MESH_NAME", "") + '/' + os.getenv("MESH_NAME", "") + '.static.nc</datadep>'
+    #
     datadep = f'  <datadep age="00:02:00"><cyclestr offset="-{offset}:00:00">{fpath}</cyclestr></datadep>'
     if ic_filename_pattern_b != '':
         dcTaskEnv['FILENAME_PATTERN_B'] = f'<cyclestr offset="-{offset}:00:00">{ic_filename_pattern_b}</cyclestr>'
@@ -76,7 +82,7 @@ def ungrib_ic(xmlFile, expdir, do_ensemble=False):
             f'\n    <datadep age="00:02:00"><cyclestr offset="-{offset}:00:00">{fpath2}</cyclestr></datadep>'
     dependencies = f'''
   <dependency>
-  <and>{timedep}
+  <and>{timedep}{domaindep}
   {datadep}
   </and>
   </dependency>'''

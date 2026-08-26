@@ -25,6 +25,8 @@ variable maps:
     alias: sea_surface_temperature
   - name: equivalentReflectivityFactor
     alias: equivalent_reflectivity_factor
+  - name: equivalentReflectivityFactor_clear
+    alias: equivalent_reflectivity_factor
   - name: salinity
     alias: sea_water_salinity
   - name: seaSurfaceTemperature

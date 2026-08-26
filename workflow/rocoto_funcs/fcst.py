@@ -146,13 +146,22 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
     coldhrs = coldhrs.split(' ')
     streqs = ""
     strneqs = ""
+    # WoFS windowed mode: the cold start is the single cycle at DA_STARTTIME
+    # (e.g. 1500), so match the full @H@M token; the legacy assumption that
+    # cold starts fall on whole hours (@H) would misclassify the sub-hourly
+    # cycles 1515/1530/... that share the same hour as the cold start.
+    if os.getenv('EVENT_DATE', '').strip():
+        cold_token = '@H@M'
+        cold_vals = [os.getenv('DA_STARTTIME', '1500').strip().zfill(4)]
+    else:
+        cold_token = '@H'
+        cold_vals = [f'{int(hr):02d}' for hr in coldhrs]
     if do_da:
         if coldstart_cyc_do_da.upper() == "FALSE":  # if no DA at coldstart cycs, skip checking DA tasks
             streqs = "\n        <or>"
-            for hr in coldhrs:
-                hr = f"{int(hr):02d}"
-                streqs += '\n  ' + spaces + f'  <streq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></streq>'
-                strneqs += '\n' + spaces + f'  <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>'
+            for hr in cold_vals:
+                streqs += '\n  ' + spaces + f'  <streq><left><cyclestr>{cold_token}</cyclestr></left><right>{hr}</right></streq>'
+                strneqs += '\n' + spaces + f'  <strneq><left><cyclestr>{cold_token}</cyclestr></left><right>{hr}</right></strneq>'
             streqs += '\n  ' + spaces + '</or>'
             jedidep_indented = textwrap.indent(jedidep, "    ")  # four extra spaces
             cloudana_dep_indented = textwrap.indent(cloudana_dep, "    ")  # four extra spaces

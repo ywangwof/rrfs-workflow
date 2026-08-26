@@ -169,7 +169,26 @@ def getkf_observer_tweak(data, getkf_type):
         i = 0
         while i < len(data) - 1:
             if (data[i].strip().startswith("action:") and data[i + 1].strip().startswith("name: reduce obs space")):
-                del data[i:i + 2]  # delete and move to the next line
+                # find the filter that owns this action
+                owner = None
+                for j in range(i - 1, -1, -1):
+                    stripped = data[j].strip()
+                    if stripped.startswith("- filter:"):
+                        owner = stripped.split(":", 1)[1].strip()
+                        break
+                if owner == "Perform Action":
+                    # a "Perform Action" filter requires an action to be set,
+                    # so it cannot simply have its action removed (OOPS raises
+                    # "Either the 'action' or 'actions' option must be set").
+                    # Convert "reduce obs space" to "reject" so the obs are
+                    # flagged (kept for post diagnostics) instead of dropped.
+                    spaces = hy.strip_indentations(data[i + 1])[1]
+                    data[i + 1] = f"{spaces}name: reject"
+                    i += 2
+                else:
+                    # for other filters the action is optional; removing it
+                    # reverts the filter to its default (reject) behavior
+                    del data[i:i + 2]  # delete and move to the next line
             else:
                 i += 1  # if no deletion, move to the next line
 

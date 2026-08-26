@@ -10,14 +10,23 @@ cd "${DATA}" || exit 1
 start_time=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%Y-%m-%d_%H:%M:%S)
 timestr=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%Y-%m-%d_%H.%M.%S)
 time_min="${subcyc:-00}"
+# WoFS sub-hourly DA: analysis minutes come from the 12-digit CDATE (HHMM);
+# legacy whole-hour cycles keep :00. Rebuild the minute-aware time strings.
+if [[ -n "${EVENT_DATE:-}" ]]; then
+  amin="${CDATE:10:2}"; amin="${amin:-00}"
+  start_time=$(date -d "${CDATE:0:8} ${CDATE:8:2}:${amin}" +%Y-%m-%d_%H:%M:%S)
+  timestr=$(date -d "${CDATE:0:8} ${CDATE:8:2}:${amin}" +%Y-%m-%d_%H.%M.%S)
+else
+  amin="00"
+fi
 #
 ln -snf "${FIXrrfs}/physics/${PHYSICS_SUITE}"/* .
-ln -snf "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.ugwp_oro_data.nc" ./ugwp_oro_data.nc
+ln -snf "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.ugwp_oro_data.nc" ./ugwp_oro_data.nc
 zeta_levels=${EXPDIR}/config/ZETA_LEVELS.txt
 nlevel=$(wc -l < "${zeta_levels}")
-ln -snf "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.invariant.nc_L${nlevel}_${prefix}" ./invariant.nc
+ln -snf "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.invariant.nc_L${nlevel}_${prefix}" ./invariant.nc
 mkdir -p graphinfo stream_list
-ln -snf "${FIXrrfs}/${MESH_NAME}"/graphinfo/* graphinfo/
+ln -snf "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}"/graphinfo/* graphinfo/
 ${cpreq} "${FIXrrfs}/stream_list/${PHYSICS_SUITE}"/* stream_list/
 ${cpreq} "${FIXrrfs}"/jedi/obsop_name_map.yaml .
 ${cpreq} "${FIXrrfs}"/jedi/keptvars.yaml .
@@ -77,9 +86,11 @@ radt=30
 file_content=$(< "${PARMrrfs}/${physics_suite}/namelist.atmosphere") # read in all content
 eval "echo \"${file_content}\"" > namelist.atmosphere
 ${cpreq} "${PARMrrfs}"/streams.atmosphere.getkf streams.atmosphere
-export ANALYSIS_DATE="${CDATE:0:4}-${CDATE:4:2}-${CDATE:6:2}T${CDATE:8:2}:00:00Z"
-CDATEm2=$(${NDATE} -2 "${CDATE}")
-export BEGIN_DATE="${CDATEm2:0:4}-${CDATEm2:4:2}-${CDATEm2:6:2}T${CDATEm2:8:2}:00:00Z"
+export ANALYSIS_DATE="${CDATE:0:4}-${CDATE:4:2}-${CDATE:6:2}T${CDATE:8:2}:${amin}:00Z"
+# Assimilation window begin = analysis time minus half the window (minutes).
+# Default 120 reproduces the legacy getkf.yaml PT4H window (analysis-2h); WoFS
+# LETKF (wofs_letkf.yaml, PT60M) sets DA_WINDOW_HALF_MIN=30 -> analysis-30min.
+export BEGIN_DATE="$(date -u -d "${ANALYSIS_DATE:0:19} UTC - ${DA_WINDOW_HALF_MIN:-120} minutes" +%Y-%m-%dT%H:%M:%SZ)"
 #
 # generate getkf.yaml based on how YAML_GEN_METHOD is set
 case ${YAML_GEN_METHOD:-1} in

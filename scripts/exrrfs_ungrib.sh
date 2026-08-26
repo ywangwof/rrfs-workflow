@@ -5,7 +5,12 @@ set -x
 cpreq=${cpreq:-cpreq}
 #
 # find variables from env
-# 
+#
+# NDATE only accepts a 10-digit YYYYMMDDHH date.  In WoFS windowed mode CDATE
+# is 12-digit (YYYYmmddHHMM); drop the trailing minutes for the hourly
+# external-model bookkeeping (external files are hourly, so minutes are not
+# needed here).  For a 10-digit CDATE this is a no-op.
+CDATE=${CDATE:0:10}
 CDATEin=$(${NDATE} "-${OFFSET}" "${CDATE}") #CDATE for input external data
 if [[ "${EXTRN_MDL_SOURCE}" == "GFS_NCO" ]]; then
   SOURCE_BASEDIR=${COMINgfs}/gfs.${CDATEin:0:8}/${CDATEin:8:2}

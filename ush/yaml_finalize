@@ -119,11 +119,29 @@ elif ANALYSIS_VARIABLES == "12":
 else:
     varlist = ANALYSIS_VARIABLES
 # ~~~~
+# microphysics-scheme dependent state / increment variables (WoFS LETKF template).
+# Mirrors run_dacycles.sh: nssl2m adds hail + number concentrations (and enables the
+# CWP "add hail mixing ratio" operator); tempo/thompson add a reduced set.
+MP_SCHEME = os.getenv("MP_SCHEME", "").lower()
+if MP_SCHEME == "mp_nssl2m":
+    MP_STATE_VARS = "hail, cloud_droplet_number_concentration, rain_number_concentration, snow_number_concentration, graupel_number_concentration, hail_number_concentration"
+    CWP_HAIL = "true"
+elif MP_SCHEME in ("mp_tempo", "mp_thompson"):
+    MP_STATE_VARS = "rain_number_concentration, cloud_droplet_number_concentration, graupel_number_concentration"
+    CWP_HAIL = "false"
+elif MP_SCHEME:
+    MP_STATE_VARS = "rain_number_concentration"
+    CWP_HAIL = "false"
+else:
+    MP_STATE_VARS = ""
+    CWP_HAIL = "false"
+# ~~~~
 if ytype == "jedivar":
     modstr = f"state variables: &incvars [{varlist}]"
     hy.modify(data, "_member/state variables", modstr)
 elif ytype == "getkf":
-    modstr = f"increment variables: [{varlist}]"
+    inc_varlist = f"{varlist}, {MP_STATE_VARS}" if MP_STATE_VARS else varlist
+    modstr = f"increment variables: [{inc_varlist}]"
     hy.modify(data, "increment variables", modstr)
 
 # ------------------------------------------------------------------------------------
@@ -145,6 +163,22 @@ driver:
 if ytype == "getkf" and GETKF_TYPE == "solver":
     block = hy.text_to_yblock(solver_driver_str)
     hy.modify(data, "driver", block)
+
+# ------------------------------------------------------------------------------------
+# microphysics scheme: fill the #@MP_STATE_VARS@ marker in the member state variables
+# block and set the CWP "add hail mixing ratio" operator flag. Must run before the
+# observers are sliced out of `data` below. No-op when MP_SCHEME is unset (e.g. getkf.yaml).
+if MP_SCHEME:
+    if MP_STATE_VARS:
+        mp_block = "\n".join(f"  - {v.strip()}" for v in MP_STATE_VARS.split(","))
+        for i, line in enumerate(data):
+            if "#@MP_STATE_VARS@" in line:
+                data[i] = mp_block
+                break
+    for i, line in enumerate(data):
+        if "add hail mixing ratio:" in line:
+            indent = line[:len(line) - len(line.lstrip())]
+            data[i] = f"{indent}add hail mixing ratio: {CWP_HAIL}"
 
 # ------------------------------------------------------------------------------------
 # read convinfo and/or satinfo if use_conv_sat_info
@@ -191,7 +225,7 @@ for name, observer in dcObs.items():
                 output.extend(tmp)
         else:  # check against convinfo
             for iname, info in dcConvInfo.items():
-                if iname == sname:
+                if iname == sname or iname == observer["name"]:
                     if info['iuse'] != "0":  # assimilate or monitor
                         if info['iuse'] == "-1":   # monitor, need to insert a passivate filter
                             for i in range(len(tmp)):

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+from datetime import datetime, timedelta
 from rocoto_funcs.base import xml_task, get_cascade_env
 
 # begin of prep_lbc --------------------------------------------------------
@@ -33,9 +34,18 @@ def prep_lbc(xmlFile, expdir, do_ensemble=False):
         meta_end = ""
         ens_size = int(os.getenv('ENS_SIZE', '2'))
         ens_indices = ''.join(f'{i:03d} ' for i in range(1, int(ens_size) + 1)).strip()
+        # WoFS: forecast member N sources its LBCs from external lbc member
+        # ((N-1) mod LBC_ENS_SIZE)+1 (round-robin), exposed as #lbc_mem# so
+        # only LBC_ENS_SIZE lbc members are generated (see lbc.py).
+        lbc_mem_var = ''
+        if os.getenv('EVENT_DATE', '').strip():
+            lbc_ens_size = int(os.getenv('LBC_ENS_SIZE', os.getenv('EXTRN_LBC_MEMBERS', '10')))
+            lbc_mems = ''.join(f'{((i - 1) % lbc_ens_size) + 1:03d} ' for i in range(1, int(ens_size) + 1)).strip()
+            lbc_mem_var = f'\n<var name="lbc_mem">{lbc_mems}</var>'
+            dcTaskEnv['LBC_MEM'] = "#lbc_mem#"
         meta_bgn = f'''
 <metatask name="{meta_id}">
-<var name="ens_index">{ens_indices}</var>'''
+<var name="ens_index">{ens_indices}</var>{lbc_mem_var}'''
         meta_end = f'\
 </metatask>\n'
         ensindexstr = "_m#ens_index#"
@@ -47,6 +57,33 @@ def prep_lbc(xmlFile, expdir, do_ensemble=False):
     if realtime.upper() == "TRUE":
         starttime = get_cascade_env(f"STARTTIME_{task_id}".upper())
         timedep = f'\n   <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
+
+    event_date = os.getenv('EVENT_DATE', '').strip()
+    if event_date:
+        # WoFS windowed mode: LBCs come from a SINGLE per-event lbc cycle at
+        # DA_STARTTIME.  Depend on the first and last hourly boundary files in
+        # that fixed shared lbc/ dir (a literal path, unambiguous across
+        # midnight).  Both existing implies both lbc groups finished.
+        da_start_hhmm = os.getenv('DA_STARTTIME', '1500').strip().zfill(4)
+        lbc_length = int(os.getenv('LBC_LENGTH', '18'))
+        d0 = datetime.strptime(event_date, '%Y%m%d') + timedelta(
+            hours=int(da_start_hhmm[:2]), minutes=int(da_start_hhmm[2:]))
+        first_valid = d0.strftime('%Y-%m-%d_%H.%M.%S')
+        last_valid = (d0 + timedelta(hours=lbc_length)).strftime('%Y-%m-%d_%H.%M.%S')
+        memsub = '/mem#lbc_mem#' if do_ensemble else ''
+        lbc_dir = f'&COMROOT;/&NET;/&rrfs_ver;/&RUN;.{event_date}/{da_start_hhmm}/lbc/&WGF;{memsub}'
+        dcTaskEnv['LBC_SRC_YMD'] = event_date
+        dcTaskEnv['LBC_SRC_HHMM'] = da_start_hhmm
+        datadep = (f'\n     <datadep age="00:00:05">{lbc_dir}/lbc.{first_valid}.nc</datadep>'
+                   f'\n     <datadep age="00:00:05">{lbc_dir}/lbc.{last_valid}.nc</datadep>')
+        dependencies = f'''
+  <dependency>
+  <and>{timedep}{datadep}
+  </and>
+  </dependency>'''
+        xml_task(xmlFile, expdir, task_id, cycledefs, dcTaskEnv, dependencies,
+                 metatask, meta_id, meta_bgn, meta_end, "PREP_LBC")
+        return
 
     taskdep = ""
     for hr in range(0, int(prep_lbc_look_back_hrs) + 1):

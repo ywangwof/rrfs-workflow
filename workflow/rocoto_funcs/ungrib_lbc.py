@@ -46,12 +46,24 @@ def ungrib_lbc(xmlFile, expdir, do_ensemble=False):
     else:  # ensemble
         # metatask (support nested metatasks)
         ens_size = int(os.getenv('ENS_SIZE', '2'))
+        # WoFS: only generate the distinct external LBC members (LBC_ENS_SIZE);
+        # forecast members map onto them round-robin at the prep_lbc stage.
+        if os.getenv('EVENT_DATE', '').strip() != '':
+            ens_size = int(os.getenv('LBC_ENS_SIZE', os.getenv('EXTRN_LBC_MEMBERS', ens_size)))
         ens_indices = ''.join(f'{i:03d} ' for i in range(1, int(ens_size) + 1)).strip()
         gmems = ''.join(f'{i:02d} ' for i in range(1, int(ens_size) + 1)).strip()
+        # WoFS: forecast member N draws its external LBC from member
+        # ((N-1) mod LBC_ENS_SIZE)+1 (round-robin), exposed as the parallel
+        # metatask var #lbc_mem# used by LBC_EXTRN_MDL_FILENAME_PATTERN.
+        lbc_mem_var = ''
+        if os.getenv('EVENT_DATE', '').strip() != '':
+            lbc_ens_size = int(os.getenv('LBC_ENS_SIZE', os.getenv('EXTRN_LBC_MEMBERS', '10')))
+            lbc_mems = ''.join(f'{((i - 1) % lbc_ens_size) + 1:03d} ' for i in range(1, int(ens_size) + 1)).strip()
+            lbc_mem_var = f'\n<var name="lbc_mem">{lbc_mems}</var>'
         meta_bgn = f'''
 <metatask name="{meta_id}">
 <var name="ens_index">{ens_indices}</var>
-<var name="gmem">{gmems}</var>
+<var name="gmem">{gmems}</var>{lbc_mem_var}
 <metatask name="{meta_id}_m#ens_index#">
 <var name="group_index">{group_indices}</var>
 '''
@@ -90,6 +102,9 @@ def ungrib_lbc(xmlFile, expdir, do_ensemble=False):
     #
 
     datadep = ''
+    if os.getenv("DO_CREATE_DOMAIN", "FALSE").upper() == "TRUE":
+        mesh = os.getenv("MESH_NAME", "")
+        datadep = f'\n     <datadep age="00:00:10">&HOMErrfs;/fix/{mesh}/{mesh}.static.nc</datadep>'
     if interval == 1 and extrn_mdl_source == "GEFS":
         interval = 3
     for i in range(int(offset), int(length) + int(offset) + 1, int(interval)):

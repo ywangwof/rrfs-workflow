@@ -40,12 +40,42 @@ mappings["ioda_mtiasi_metop-b.nc"]="${obspath}/ioda_mtiasi_metop-b.nc"
 mappings["ioda_mtiasi_metop-c.nc"]="${obspath}/ioda_mtiasi_metop-c.nc"
 
 if [[ "${DO_RADAR_REF^^}" == "TRUE" ]]; then
-  if ${jedivar}; then
-    obspath="${COMOUT}/ioda_mrms_refl/${WGF}"
-  else # getkf
-    obspath="${COMOUT}/ioda_mrms_refl/${IODA_BUFR_WGF}"
+  if [[ -n "${EVENT_DATE:-}" ]]; then
+    # WoFS windowed mode: the ioda_mrms_refl task is not run; use the
+    # pre-staged IODA MRMS file for the analysis time YYYYmmddHHMM from
+    #   ${MRMS_ALL_DIR}/YYYYmmdd/ioda_mrms_YYYYmmdd_HHMM.nc4
+    mappings["ioda_mrms_refl.nc"]="${MRMS_ALL_DIR}/${CDATE:0:8}/ioda_mrms_${CDATE:0:8}_${cyc}.nc4"
+    # WoFS clear-sky reflectivity (refl10cm_clear obs space), pre-staged at
+    #   ${MRMS_CLEAR_DIR}/YYYYmmdd/ioda_mrms_YYYYmmdd_HHMM_clear.nc4
+    mappings["ioda_mrms_clear.nc"]="${MRMS_CLEAR_DIR}/${CDATE:0:8}/ioda_mrms_${CDATE:0:8}_${cyc}_clear.nc4"
+  else
+    if ${jedivar}; then
+      obspath="${COMOUT}/ioda_mrms_refl/${WGF}"
+    else # getkf
+      obspath="${COMOUT}/ioda_mrms_refl/${IODA_BUFR_WGF}"
+    fi
+    mappings["ioda_mrms_refl.nc"]="${obspath}/ioda_mrms_${CDATE}_${time_min}.nc4"
   fi
-  mappings["ioda_mrms_refl.nc"]="${obspath}/ioda_mrms_${CDATE}_${time_min}.nc4"
+fi
+
+# WoFS radial velocity (rw obs space): pre-staged IODA VR file for the analysis
+# time YYYYmmddHHMM at ${VR_DIR}/YYYYmmdd/ioda_VR_YYYYmmdd_HHMM.nc4
+if [[ -n "${EVENT_DATE:-}" ]]; then
+  mappings["ioda_rw_obs.nc"]="${VR_DIR}/${CDATE:0:8}/ioda_VR_${CDATE:0:8}_${cyc}.nc4"
+fi
+
+# GOES cloud-water-path obs (cwp/lwp/iwp and their _night variants).  These are
+# produced by the ioda_cwp task into ${COMOUT}/ioda_cwp/${WGF}; stage whichever
+# variables were generated for this cycle.
+if [[ -n "${OBS_CWP_DIR:-}" ]]; then
+  if ${jedivar}; then
+    cwppath="${COMOUT}/ioda_cwp/${WGF}"
+  else # getkf
+    cwppath="${COMOUT}/ioda_cwp/${IODA_BUFR_WGF}"
+  fi
+  for cwpobs in cwp lwp iwp cwp_night lwp_night iwp_night; do
+    mappings["ioda_${cwpobs}_obs.nc"]="${cwppath}/ioda_${cwpobs}_obs.nc"
+  done
 fi
 
 # loop through and copy files

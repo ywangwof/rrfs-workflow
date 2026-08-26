@@ -1,0 +1,63 @@
+&nhyd_model
+    config_init_case = 7
+    config_start_time = '@START_TIME@'
+    config_stop_time = '@START_TIME@'
+    config_theta_adv_order = 3
+    config_coef_3rd_order = 0.25
+/
+&dimensions
+    config_nvertlevels   = @NVERTLEVELS@
+    config_nsoillevels   = @NSOILLEVELS@
+    config_nfglevels     = @NFGLEVELS@
+    config_nfgsoillevels = @NFGSOILLEVELS@
+    config_nsoilcat      = 16
+    config_nvegopt       = 2
+/
+&data_sources
+    config_geog_data_path         = '@DOMAIN_GEOG_DATA_PATH@'
+    config_met_prefix             = '@MET_PREFIX@'
+    config_sfc_prefix             = 'SST'
+    config_fg_interval            = @FG_INTERVAL@
+    config_landuse_data           = 'MODIFIED_IGBP_MODIS_NOAH_15s'
+    config_topo_data              = 'GMTED2010'
+    config_vegfrac_data           = 'MODIS'
+    config_albedo_data            = 'MODIS'
+    config_maxsnowalbedo_data     = 'MODIS'
+    config_supersample_factor     = 3
+    config_30s_supersample_factor = 1
+    config_use_spechumd           = true
+    config_soilcat_data           = 'BNU'
+/
+&vertical_grid
+    config_ztop                  = @ZTOP@
+    config_nsmterrain            = 1
+    config_smooth_surfaces       = true
+    config_dzmin                 = 0.3
+    config_nsm                   = 30
+    config_tc_vertical_grid      = true
+    config_blend_bdy_terrain     = true
+    config_specified_zeta_levels = '@ZETA_LEVELS@'
+/
+&interpolation_control
+    config_extrap_airtemp = 'lapse-rate'
+/
+&preproc_stages
+    config_static_interp         = false
+    config_native_gwd_static     = false
+    config_native_gwd_gsl_static = false
+    config_vertical_grid         = true
+    config_met_interp            = true
+    config_input_sst             = false
+    config_frac_seaice           = true
+    config_tempo_rap             = false
+/
+&physics
+    config_tsk_seaice_threshold  = 271.4
+/
+&io
+    config_pio_num_iotasks = 0
+    config_pio_stride = 1
+/
+&decomposition
+    config_block_decomp_file_prefix = '@MESH_NAME@.graph.info.part.'
+/

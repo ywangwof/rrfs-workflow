@@ -31,24 +31,43 @@ ref_lon=${MPASSIT_REF_LON:-"-97.5"}
 #
 zeta_levels=${EXPDIR}/config/ZETA_LEVELS.txt
 nlevel=$(wc -l < "${zeta_levels}")
-ln -snf "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.invariant.nc_L${nlevel}_${prefix}" ./invariant.nc
+ln -snf "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.invariant.nc_L${nlevel}_${prefix}" ./invariant.nc
 #
 # find forecst length for this cycle
 #
 fcst_len_hrs_cycles=${FCST_LEN_HRS_CYCLES:-"01 01"}
-fcst_len_hrs_thiscyc=$("${USHrrfs}/find_fcst_length.sh" "${fcst_len_hrs_cycles}" "${cyc}" )
-echo "forecast length for this cycle is ${fcst_len_hrs_thiscyc}"
+if [[ "${DO_FREE_FCST^^}" != "TRUE" ]]; then
+  fcst_len_hrs_thiscyc=$("${USHrrfs}/find_fcst_length.sh" "${fcst_len_hrs_cycles}" "${cyc}" )
+  echo "forecast length for this cycle is ${fcst_len_hrs_thiscyc}"
+fi
 #
-# loop through forecast history files for this group
+# loop through forecast history files for this group.  In WoFS free-forecast
+# mode the lead times are MINUTES (GROUP_MINUTES) and timestamps are computed
+# from the minute-aware cycle valid time; otherwise they are hours.
 #
-read -ra fhr_all <<< "${GROUP_HOURS}"  # convert string to array
+if [[ "${DO_FREE_FCST^^}" == "TRUE" ]]; then
+  read -ra fhr_all <<< "${GROUP_MINUTES}"
+  free_len_min=$(( 10#${FREE_FCST_LEN_HRS:-6} * 60 ))
+  cdate_ymd=${CDATE:0:8}
+  cdate_hh=${CDATE:8:2}
+  cdate_mm=${CDATE:10:2}; cdate_mm=${cdate_mm:-00}
+else
+  read -ra fhr_all <<< "${GROUP_HOURS}"  # convert string to array
+fi
 for fhr in "${fhr_all[@]}"; do
-    if (( 10#${fhr} > 10#${fcst_len_hrs_thiscyc} )); then
-      break
+    if [[ "${DO_FREE_FCST^^}" == "TRUE" ]]; then
+      if (( 10#${fhr} > free_len_min )); then
+        break
+      fi
+      timestr=$(date -d "${cdate_ymd} ${cdate_hh}:${cdate_mm} ${fhr} minutes" +%Y-%m-%d_%H.%M.%S)
+    else
+      if (( 10#${fhr} > 10#${fcst_len_hrs_thiscyc} )); then
+        break
+      fi
+      # get forecast hour and string
+      CDATEp=$(${NDATE} "${fhr}" "${CDATE}" )
+      timestr=$(date -d "${CDATEp:0:8} ${CDATEp:8:2}" +%Y-%m-%d_%H.%M.%S)
     fi
-    # get forecast hour and string
-    CDATEp=$(${NDATE} "${fhr}" "${CDATE}" )
-    timestr=$(date -d "${CDATEp:0:8} ${CDATEp:8:2}" +%Y-%m-%d_%H.%M.%S) 
     # decide the history files   
     history_file=${UMBRELLA_FCST_DATA}/history.${timestr}.nc
     diag_file=${UMBRELLA_FCST_DATA}/diag.${timestr}.nc

@@ -2,10 +2,16 @@
 import os
 
 
-def smart_ens_groups(meta_id):
+def smart_ens_groups(meta_id, ens_size=None, num_groups=None):
     list_group_info = []
-    ens_size = int(os.getenv('ENS_SIZE', '30'))
-    num_groups = int(os.getenv('ENS_GROUP_TOT_NUM', '1'))
+    if ens_size is None:
+        ens_size = int(os.getenv('ENS_SIZE', '30'))
+    else:
+        ens_size = int(ens_size)
+    if num_groups is None:
+        num_groups = int(os.getenv('ENS_GROUP_TOT_NUM', '1'))
+    else:
+        num_groups = int(num_groups)
     ens_metadep_frac_threshold = float(os.getenv('ENS_METADEP_FRAC_THRESHOLD', '1.0'))
 
     # 1. Generate padded IDs (001, 002...)

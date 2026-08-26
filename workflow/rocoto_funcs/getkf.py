@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env
+from rocoto_funcs.base import xml_task, get_cascade_env, tok_hm, tok_reftime
 
 # begin of getkf ---------------------------------------------------------------
 
@@ -22,7 +22,7 @@ def getkf(xmlFile, expdir, taskType):
         'PHYSICS_SUITE': f'{physics_suite}',
         'LSM_SCHEME': f'{lsm_scheme}',
         'NSOIL_LEVELS': os.getenv('NSOIL_LEVELS', '9'),
-        'REFERENCE_TIME': '@Y-@m-@dT@H:00:00Z',
+        'REFERENCE_TIME': tok_reftime(),
         'DO_RADAR_REF': os.getenv('DO_RADAR_REF', 'FALSE').upper(),
         'YAML_GEN_METHOD': os.getenv('YAML_GEN_METHOD', '1'),
         'COLDSTART_CYCS_DO_DA': os.getenv('COLDSTART_CYCS_DO_DA', 'TRUE').upper(),
@@ -32,6 +32,8 @@ def getkf(xmlFile, expdir, taskType):
         'USE_CONV_SAT_INFO': os.getenv('USE_CONV_SAT_INFO', 'TRUE').upper(),
         'SAT_USELIST': os.getenv('SAT_USELIST', ''),
         'EMPTY_OBS_SPACE_ACTION': os.getenv('EMPTY_OBS_SPACE_ACTION', 'skip output'),
+        'DA_WINDOW_HALF_MIN': os.getenv('DA_WINDOW_HALF_MIN', '120'),
+        'MP_SCHEME': os.getenv('MP_SCHEME', ''),
     }
     if taskType.upper() == "OBSERVER":
         task_id = "getkf_observer"
@@ -54,8 +56,12 @@ def getkf(xmlFile, expdir, taskType):
             iodadep = '<taskdep task="ioda_bufr"/>'
             dcTaskEnv['IODA_BUFR_WGF'] = 'enkf'
         else:
-            iodadep = f'<datadep age="00:01:00"><cyclestr>&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/ioda_bufr/det/ioda_aircar.nc</cyclestr></datadep>'
+            iodadep = f'<datadep age="00:01:00"><cyclestr>&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/{tok_hm()}/ioda_bufr/det/ioda_aircar.nc</cyclestr></datadep>'
             dcTaskEnv['IODA_BUFR_WGF'] = 'det'
+
+        cwpdep = ""
+        if os.getenv("DO_CWP", "FALSE").upper() == "TRUE":
+            cwpdep = '\n    <taskdep task="ioda_cwp"/>'
 
         final_recenterdep = ""
         spaces = " " * 4
@@ -83,7 +89,7 @@ def getkf(xmlFile, expdir, taskType):
   <dependency>
   <and>{timedep}
     <taskdep task="prep_ic"/>
-    {iodadep}{final_recenterdep}
+    {iodadep}{cwpdep}{final_recenterdep}
   </and>
   </dependency>'''
     elif taskType.upper() == "SOLVER":

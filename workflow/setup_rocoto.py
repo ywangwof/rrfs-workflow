@@ -92,7 +92,11 @@ if os.path.exists(f"{HOMErrfs}/workflow/config.override"):
 if os.getenv("DO_JEDI", 'false').upper() == "TRUE":
     # copy jedivar/getkf yamls to exp_configdir
     if os.getenv('DO_ENSEMBLE', 'FALSE').upper() == "TRUE":
-        shutil.copy(f'{HOMErrfs}/parm/getkf.yaml', f'{exp_configdir}/getkf.yaml')
+        # GETKF_YAML selects the source template (default getkf.yaml); it is always
+        # installed as config/getkf.yaml so the runtime (exrrfs_getkf.sh/yaml_finalize)
+        # is unchanged. WoFS sets GETKF_YAML=wofs_letkf.yaml to use the LETKF template.
+        getkf_yaml = os.getenv('GETKF_YAML', 'getkf.yaml')
+        shutil.copy(f'{HOMErrfs}/parm/{getkf_yaml}', f'{exp_configdir}/getkf.yaml')
         ens_str = "_ens"
     else:
         shutil.copy(f'{HOMErrfs}/parm/jedivar.yaml', f'{exp_configdir}/jedivar.yaml')
@@ -108,7 +112,13 @@ if os.getenv("DO_JEDI", 'false').upper() == "TRUE":
         print(f'satinfo.{NET}{ens_str} not found under current directoy, copy from ${{FIXrrfs}}/jedi\n')
         shutil.copy(f'{HOMErrfs}/fix/jedi/satinfo.{NET}{ens_str}', f'satinfo.{NET}{ens_str}')
     # copy corresponding convinfo/satinfo to exp_configdir
-    shutil.copy(f'convinfo.{NET}{ens_str}', f'{exp_configdir}/convinfo')
+    # CONVINFO selects a workflow-provided convinfo template (parm/<CONVINFO>) and
+    # installs it as config/convinfo; default keeps the NET-based convinfo.${NET}${ens_str}.
+    convinfo_file = os.getenv('CONVINFO', '')
+    if convinfo_file != '':
+        shutil.copy(f'{HOMErrfs}/parm/{convinfo_file}', f'{exp_configdir}/convinfo')
+    else:
+        shutil.copy(f'convinfo.{NET}{ens_str}', f'{exp_configdir}/convinfo')
     shutil.copy(f'satinfo.{NET}{ens_str}', f'{exp_configdir}/satinfo')
 #
 if os.getenv('DO_HOFX', 'FALSE').upper() == "TRUE":

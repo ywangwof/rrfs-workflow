@@ -12,12 +12,12 @@ do_DAcycling='true'
 # link fix files from physics, meshes, graphinfo, stream list, and jedi
 #
 ln -snf "${FIXrrfs}/physics/${PHYSICS_SUITE}"/*  .
-ln -snf "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.ugwp_oro_data.nc"  ./ugwp_oro_data.nc
+ln -snf "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.ugwp_oro_data.nc"  ./ugwp_oro_data.nc
 zeta_levels=${EXPDIR}/config/ZETA_LEVELS.txt
 nlevel=$(wc -l < "${zeta_levels}")
-ln -snf "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.invariant.nc_L${nlevel}_${prefix}"  ./invariant.nc
+ln -snf "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.invariant.nc_L${nlevel}_${prefix}"  ./invariant.nc
 mkdir -p graphinfo stream_list
-ln -snf "${FIXrrfs}/${MESH_NAME}"/graphinfo/*  graphinfo/
+ln -snf "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}"/graphinfo/*  graphinfo/
 ${cpreq} "${FIXrrfs}/stream_list/${PHYSICS_SUITE}"/*  stream_list/
 ${cpreq} "${FIXrrfs}"/jedi/obsop_name_map.yaml .
 ${cpreq} "${FIXrrfs}"/jedi/keptvars.yaml .

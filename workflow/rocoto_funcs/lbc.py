@@ -46,6 +46,11 @@ def lbc(xmlFile, expdir, do_ensemble=False):
     else:  # ensemble
         # metatask (nested or not)
         ens_size = int(os.getenv('ENS_SIZE', '2'))
+        # WoFS: only the distinct external LBC members need boundaries generated
+        # (forecast members map onto them round-robin at the prep_lbc stage), so
+        # cap the lbc metatask at LBC_ENS_SIZE to avoid redundant work.
+        if os.getenv('EVENT_DATE', '').strip():
+            ens_size = int(os.getenv('LBC_ENS_SIZE', os.getenv('EXTRN_LBC_MEMBERS', ens_size)))
         ens_indices = ''.join(f'{i:03d} ' for i in range(1, int(ens_size) + 1)).strip()
         meta_bgn = f'''
 <metatask name="{meta_id}">

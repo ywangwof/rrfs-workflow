@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env
+from rocoto_funcs.base import xml_task, get_cascade_env, tok_hm, wofs_windowed, min_to_offset
 
 # begin of fcst --------------------------------------------------------
 
@@ -16,6 +16,20 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
         cycledefs = 'prod'
     coldhrs = os.getenv('COLDSTART_CYCS', '03 15')
     cyc_interval = os.getenv('CYC_INTERVAL')
+    # WoFS windowed mode: single cold start at DA_STARTTIME, previous first
+    # guess is the DA short forecast (DA_INTERVAL minutes back).
+    subhourly = wofs_windowed()
+    hm = tok_hm()
+    if subhourly:
+        coldhrs = os.getenv('DA_STARTTIME', '1500').strip().zfill(4)
+        da_interval = int(os.getenv('DA_INTERVAL', '15'))
+        prev_offset = '-' + min_to_offset(da_interval)
+        prev_marker = 'fcst_da.done'
+        hrpad = 4
+    else:
+        prev_offset = f'-{cyc_interval}:00:00'
+        prev_marker = f'fcst_f{cyc_interval:0>3}.done'
+        hrpad = 2
     do_sfc_update = os.getenv('DO_SFC_UPDATE', 'false').upper()
     sst_update_cycs = os.getenv('SST_UPDATE_CYCS', '99')
     sfc_update_look_back_hrs = os.getenv('SFC_UPDATE_LOOK_BACK_HRS', cyc_interval)
@@ -66,12 +80,12 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
     streqs = ""
     strneqs = ""
     for hr in coldhrs:
-        hr = f"{hr:0>2}"
-        streqs = streqs + f"\n        <streq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></streq>"
-        strneqs = strneqs + f"\n      <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>"
+        hr = f"{hr:0>{hrpad}}"
+        streqs = streqs + f"\n        <streq><left><cyclestr>{hm}</cyclestr></left><right>{hr}</right></streq>"
+        strneqs = strneqs + f"\n      <strneq><left><cyclestr>{hm}</cyclestr></left><right>{hr}</right></strneq>"
     streqs = streqs.lstrip('\n')
     strneqs = strneqs.lstrip('\n')
-    datadep_prod = f'''\n      <datadep age="00:00:05"><cyclestr offset="-{cyc_interval}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/fcst/&WGF;/fcst_f{cyc_interval:0>3}.done</cyclestr></datadep>'''
+    datadep_prod = f'''\n      <datadep age="00:00:05"><cyclestr offset="{prev_offset}">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/{hm}/fcst/&WGF;/{prev_marker}</cyclestr></datadep>'''
 
     datadep_spinup = f'''\n      <taskdep task="fcst_spinup" cycle_offset="-1:00:00"/>'''
     if spinup_mode == 0:  # no parallel spinup cycles
@@ -87,7 +101,7 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
         dcTaskEnv['SFC_UPDATE_SOURCE_DIR'] = os.getenv('SFC_UPDATE_SOURCE_DIR', '')
         datadep_sfc = ""
         for i in range(1, int(sfc_update_look_back_hrs) + 1, 1):
-            datadep_sfc = datadep_sfc + f'''\n        <datadep age="00:00:05"><cyclestr offset="-{i}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/fcst/&WGF;/fcst_f{i:0>3}.done</cyclestr></datadep>'''
+            datadep_sfc = datadep_sfc + f'''\n        <datadep age="00:00:05"><cyclestr offset="-{i}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/{hm}/fcst/&WGF;/fcst_f{i:0>3}.done</cyclestr></datadep>'''
         sfc_dep = f'''
       <or>{timedep}{datadep_sfc}
       </or>'''
@@ -98,8 +112,8 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
         # cold start cycles wait for the latest satbias updated from the -1h cycles
         spaces = " " * 6
         satbias_dep = '\n' + spaces + '<or>'
-        satbias_dep += '\n' + spaces + f'  <taskdep task="jedivar" cycle_offset="-{cyc_interval}:00:00"/>'
-        satbias_dep += '\n' + spaces + f'  <datadep><cyclestr offset="-{cyc_interval}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/jedivar/&WGF;/satbias_jumpstart</cyclestr></datadep>'
+        satbias_dep += '\n' + spaces + f'  <taskdep task="jedivar" cycle_offset="{prev_offset}"/>'
+        satbias_dep += '\n' + spaces + f'  <datadep><cyclestr offset="{prev_offset}">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/{hm}/jedivar/&WGF;/satbias_jumpstart</cyclestr></datadep>'
         satbias_dep += '\n' + spaces + '</or>'
     #
     if os.getenv('DO_IC_LBC', 'TRUE').upper() == "TRUE":
