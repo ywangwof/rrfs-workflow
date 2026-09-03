@@ -34,6 +34,7 @@ def mpassit(xmlFile, expdir, index, dcGrpInfo, do_ensemble=False, do_ensmean_pos
         'MPASSIT_REF_LON': os.getenv('MPASSIT_REF_LON', 'MPASSIT_REF_LON_not_defined'),
         'EXTRN_MDL_SOURCE': f'{extrn_mdl_source}',
         'LSM_SCHEME': os.getenv('LSM_SCHEME', 'sf_ruc'),
+        'PHYSICS_SUITE': os.getenv('PHYSICS_SUITE', 'PHYSICS_SUITE_not_defined'),
     }
 
     if os.getenv('DO_CHEMISTRY', 'FALSE').upper() == "TRUE":

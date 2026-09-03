@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env
+from rocoto_funcs.base import xml_task, get_cascade_env, mesh_dir
 
 # begin of ungrib_lbc --------------------------------------------------------
 
@@ -104,7 +104,7 @@ def ungrib_lbc(xmlFile, expdir, do_ensemble=False):
     datadep = ''
     if os.getenv("DO_CREATE_DOMAIN", "FALSE").upper() == "TRUE":
         mesh = os.getenv("MESH_NAME", "")
-        datadep = f'\n     <datadep age="00:00:10">&HOMErrfs;/fix/{mesh}/{mesh}.static.nc</datadep>'
+        datadep = f'\n     <datadep age="00:00:10">{mesh_dir()}/{mesh}.static.nc</datadep>'
     if interval == 1 and extrn_mdl_source == "GEFS":
         interval = 3
     for i in range(int(offset), int(length) + int(offset) + 1, int(interval)):

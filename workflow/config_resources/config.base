@@ -6,7 +6,7 @@
 export NODES=${NODES:-"<nodes>1:ppn=1</nodes>"} #the NODES variable has to include the tag <nodes> or <cores>
 export WALLTIME=${WALLTIME:-"00:50:00"}
 export MEMORY=${MEMORY:-""}
-export MAXTRIES=${MAXTRIES:-"1"}
+export MAXTRIES=${MAXTRIES:-"2"}
 export RESERVATION=${RESERVATION:-""}
 export CLUSTER=${CLUSTER:-""}
 export NATIVE=${NATIVE:-""}

@@ -125,7 +125,7 @@ elif [[ "${do_free}" == 'true' ]]; then
   free_out_min=${FREE_OUTPUT_INTERVAL_MIN:-5}
   history_interval=${free_out_min}
   diag_interval=${free_out_min}
-  mpasout_interval=${free_out_min}
+  mpasout_interval="7200"
   MPASOUT_TIMELEVELS=""
   min2hms() { printf '%02d:%02d:%02d' $(( 10#$1/60 )) $(( 10#$1%60 )) 0; }
   [[ ${restart_interval} =~ ^[0-9]+$ ]] && restart_interval="$(min2hms "${restart_interval}")"

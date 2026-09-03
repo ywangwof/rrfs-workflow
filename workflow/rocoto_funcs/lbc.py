@@ -74,6 +74,7 @@ def lbc(xmlFile, expdir, do_ensemble=False):
     dependencies = f'''
   <dependency>
   <and>{timedep}
+    <taskdep task="create_domain"/>
     <metataskdep metatask="ungrib_lbc{ensindexstr}"/>
   </and>
   </dependency>'''

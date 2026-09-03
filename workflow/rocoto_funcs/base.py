@@ -36,6 +36,25 @@ def min_to_offset(total_min):
     return f'{total_min // 60}:{total_min % 60:02d}:00'
 
 
+def mesh_dir():
+    """Directory holding the experiment mesh files (<mesh>.static.nc, etc.).
+
+    In WoFS windowed mode create_domain writes the mesh into a per-event
+    directory under COM (see MESHrrfs in task_common_vars); otherwise it falls
+    back to the shared ${FIXrrfs}/${MESH_NAME}. This mirrors the runtime
+    ${MESHrrfs:-${FIXrrfs}/${MESH_NAME}} used by the job scripts so the rocoto
+    datadeps gate on the same location create_domain actually produces.
+    """
+    mesh = os.getenv('MESH_NAME', '')
+    if wofs_windowed():
+        net = os.getenv('NET', 'rrfs')
+        run = net  # so far, RUN = NET
+        rrfs_ver = os.getenv('VERSION', 'v2.0.0')
+        event_date = os.getenv('EVENT_DATE', '').strip()
+        return f'&COMROOT;/{net}/{rrfs_ver}/{run}.{event_date}/domain/{mesh}'
+    return f'&HOMErrfs;/fix/{mesh}'
+
+
 def source(bash_file, optional=False):
     """
     Source a Bash file and capture the environment variables

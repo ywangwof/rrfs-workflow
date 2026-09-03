@@ -191,7 +191,7 @@ elif [[ ${MESH_NAME} == "wofs_mpas" ]]; then
   # create_domain task from the DOMAIN_* knobs (see exp file / config.base).
   export FCST_DT=${FCST_DT:-20}
   export FCST_SUBSTEPS=${FCST_SUBSTEPS:-4}
-  export FCST_RADT=${FCST_RADT:-15}
+  export FCST_RADT=${FCST_RADT:-5}
   export UPP_DOMAIN="wofs."
   export MRMS_GRIDSPACINGDEG=${MRMS_GRIDSPACINGDEG:-0.03}
 

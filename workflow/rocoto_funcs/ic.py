@@ -51,6 +51,7 @@ def ic(xmlFile, expdir, do_ensemble=False):
     dependencies = f'''
   <dependency>
     <and>{timedep}
+      <taskdep task="create_domain"/>
       <taskdep task="ungrib_ic{ensindexstr}"/>
     </and>
   </dependency>'''

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env
+from rocoto_funcs.base import xml_task, get_cascade_env, mesh_dir
 
 # begin of ungrib_ic --------------------------------------------------------
 
@@ -70,8 +70,8 @@ def ungrib_ic(xmlFile, expdir, do_ensemble=False):
     # gate on the one-time domain build (fix mesh must exist before ic/lbc use it)
     domaindep = ""
     if os.getenv("DO_CREATE_DOMAIN", "FALSE").upper() == "TRUE":
-        domaindep = '\n    <datadep age="00:00:10">&HOMErrfs;/fix/' \
-            + os.getenv("MESH_NAME", "") + '/' + os.getenv("MESH_NAME", "") + '.static.nc</datadep>'
+        mesh = os.getenv("MESH_NAME", "")
+        domaindep = f'\n    <datadep age="00:00:10">{mesh_dir()}/{mesh}.static.nc</datadep>'
     #
     datadep = f'  <datadep age="00:02:00"><cyclestr offset="-{offset}:00:00">{fpath}</cyclestr></datadep>'
     if ic_filename_pattern_b != '':

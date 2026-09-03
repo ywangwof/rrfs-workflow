@@ -11,10 +11,16 @@ cd "${DATA}"  || exit 1
 #
 ${cpreq} "${EXECrrfs}"/mpassit.x .
 
-${cpreq} "${FIXrrfs}"/mpassit/diaglist                    diaglist
-${cpreq} "${FIXrrfs}"/mpassit/histlist_2d                 histlist_2d
-${cpreq} "${FIXrrfs}"/mpassit/histlist_3d                 histlist_3d
-${cpreq} "${FIXrrfs}"/mpassit/histlist_soil               histlist_soil
+# Use a physics-suite-specific set of field lists when available, otherwise
+# fall back to the shared defaults (keeps all other WGFs unchanged).
+mpassit_fix="${FIXrrfs}/mpassit"
+if [[ -n "${PHYSICS_SUITE:-}" && -d "${FIXrrfs}/mpassit/${PHYSICS_SUITE}" ]]; then
+  mpassit_fix="${FIXrrfs}/mpassit/${PHYSICS_SUITE}"
+fi
+${cpreq} "${mpassit_fix}"/diaglist                       diaglist
+${cpreq} "${mpassit_fix}"/histlist_2d                    histlist_2d
+${cpreq} "${mpassit_fix}"/histlist_3d                    histlist_3d
+${cpreq} "${mpassit_fix}"/histlist_soil                  histlist_soil
 if [[ "${LSM_SCHEME}" == *noah* ]]; then
   sed -i '/^snowfallac/d' histlist_2d  # sf_noah, sf_noahmp does not output variable density snowfall accumulation
 fi
