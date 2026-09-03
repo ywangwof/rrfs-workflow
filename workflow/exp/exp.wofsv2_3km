@@ -5,11 +5,12 @@
 export NET=wofsv2                    # rrfs, rtma, 
 export MESH_NAME=wofs_mpas           # conus12km, conus3km, na12km, etc
 export WGF="enkf"   # working group function = "det", "enkf", "ens", "firewx"
-export EXP_NAME=wofs_test
+export PHYSICS_SUITE=wofsv2          # selects parm/wofsv2 and fix/{physics,stream_list}/wofsv2
+export EXP_NAME=wofs_test2
 export VERSION=$(cat ./VERSION)
 export TAG=e3km
-export OPSROOT=/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/${EXP_NAME}
-export EXPDIR=${OPSROOT}/exp/${NET}
+export OPSROOT=/scratch3/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/${EXP_NAME}
+export EXPDIR=${OPSROOT}/exp
 export COMROOT=${OPSROOT}/com      # task input and output data as well as logs
 export DATAROOT=${OPSROOT}/stmp    # task workdirs ($DATA) which to be removed immediately upon task completion unless KEEPDATA=YES
 #
@@ -21,8 +22,8 @@ export DATAROOT=${OPSROOT}/stmp    # task workdirs ($DATA) which to be removed i
 # because config.meshdep is sourced before config.base.
 # ============================================================================
 export DO_CREATE_DOMAIN=true          # build the mesh before any cycle runs
-export DOMAIN_CEN_LAT=42.94924        # central latitude of the domain
-export DOMAIN_CEN_LON=-90.41793       # central longitude of the domain
+export DOMAIN_CEN_LAT=39.36381
+export DOMAIN_CEN_LON=-96.1595
 export DOMAIN_SIZE_KM=900             # square domain edge length (km)
 export DOMAIN_DX_KM=3                 # cell spacing / resolution (km)
 export DOMAIN_STD_PAR1=30.0           # Lambert standard parallel 1
@@ -40,7 +41,7 @@ export GPMETIS="/scratch3/NAGAPE/wof/ywang/tools/bin/gpmetis"
 # GRIB2 record (met interpolation) for the JEDI/fcst/MPASSIT tasks.
 export DO_DOMAIN_INVARIANT=true
 export DOMAIN_INVARIANT_PREFIX=RRFSv2X
-export DOMAIN_INVARIANT_GRIB2="/scratch3/BMC/nrtrr/RRFSv2X_retro/com/rrfs/v2.1.4/rrfs.20260417/14/upp/enkf/mem001/rrfs.t14z.natlev.f001.conus.grib2"
+export DOMAIN_INVARIANT_GRIB2="/scratch3/BMC/nrtrr/RRFSv2X_retro/com/rrfs/v2.1.4/rrfs.20260518/14/upp/enkf/mem001/rrfs.t14z.natlev.f001.conus.grib2"
 export DOMAIN_INVARIANT_VTABLE=RRFSv2X   # parm/create_domain/Vtable.RRFSv2X
 #
 export DO_ENSEMBLE=true
@@ -104,9 +105,9 @@ export LBC_UNGRIB_GROUP_TOTAL_NUM=2
 export LBC_GROUP_TOTAL_NUM=2
 
 # --- Legacy (hourly retro) knobs -----------------------------------------
-# In WoFS windowed mode (EVENT_DATE set) these are bypassed:
+# In WoFS windowed mode (DO_WOFS=true) these are bypassed:
 #   * RETRO_PERIOD   : only read by the legacy retro cycledef branch, which is
-#                      skipped by the EVENT_DATE early-return in smart_cycledefs.
+#                      skipped by the DO_WOFS early-return in smart_cycledefs.
 #   * COLDSTART_CYCS : overridden by DA_STARTTIME in prep_ic.py and fcst.py.
 # Kept only so this exp stays diff-comparable with the non-WoFS experiments.
 export RETRO_PERIOD="2024052700-2024052800"
@@ -118,13 +119,15 @@ export LBC_CYCS="00 06 12 18"
 export PREP_LBC_LOOK_BACK_HRS=5   # hours prep_lbc searches back for LBC source files
 
 # --- WoFS windowed sub-hourly cycling (Phase 1) ---------------------------
-# When EVENT_DATE is non-empty the workflow runs in "WoFS windowed" mode:
+# DO_WOFS is the master switch.  When DO_WOFS=true the workflow runs in "WoFS
+# windowed" mode:
 #   * DA/prod cycles run every DA_INTERVAL minutes over [DA_STARTTIME,DA_ENDTIME]
 #   * free forecasts launch every FREE_FCST_INTERVAL_MIN minutes over
 #     [FCST_STARTTIME,FCST_ENDTIME]
 # All times are HHMM (UTC); an end time <= its start time rolls to the next day.
-# Leave EVENT_DATE empty to fall back to the legacy RETRO_PERIOD hourly logic.
-export EVENT_DATE="20260417"      # YYYYmmdd of the WoFS event
+# Set DO_WOFS=false to fall back to the legacy RETRO_PERIOD hourly logic.
+export DO_WOFS=true               # master switch for WoFS windowed sub-hourly cycling
+export EVENT_DATE="20260518"      # YYYYmmdd of the WoFS event
 export DA_STARTTIME="1500"        # HHMM, first (cold-start) DA/prod cycle
 export DA_ENDTIME="0300"          # HHMM, last DA/prod cycle (next day if <= start)
 export DA_INTERVAL=15             # minutes between DA/prod cycles; also sets the DA first-guess forecast length (-> DA_FCST_SECONDS)

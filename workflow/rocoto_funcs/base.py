@@ -7,12 +7,13 @@ from dateutil.relativedelta import relativedelta
 
 
 # --- WoFS windowed sub-hourly cycling helpers (Phase 1) --------------------
-# When EVENT_DATE is set the workflow runs in "WoFS windowed" mode and every
-# per-cycle path/label token must carry minute resolution (@H@M) so that
-# sub-hourly cycles do not collide. When EVENT_DATE is empty these helpers
-# return the exact legacy tokens, keeping existing experiments byte-identical.
+# DO_WOFS is the master switch (config.base default FALSE).  When it is TRUE the
+# workflow runs in "WoFS windowed" mode and every per-cycle path/label token must
+# carry minute resolution (@H@M) so that sub-hourly cycles do not collide.  When
+# DO_WOFS is FALSE these helpers return the exact legacy tokens, keeping existing
+# experiments byte-identical.  EVENT_DATE remains the event date *value* (YYYYmmdd).
 def wofs_windowed():
-    return os.getenv('EVENT_DATE', '').strip() != ''
+    return os.getenv('DO_WOFS', 'FALSE').upper() == 'TRUE'
 
 
 def tok_hm():
@@ -124,7 +125,7 @@ def header_entities(xmlFile, expdir):
     hm = tok_hm()
     cdate_fmt = tok_cdate()
     if wofs_windowed():
-        cyc_min_envar = '\n<envar><name>cyc_min</name><value><cyclestr>@M</cyclestr></value></envar>'
+        subcyc_envar = '\n<envar><name>subcyc</name><value><cyclestr>@M</cyclestr></value></envar>'
         # WoFS DA-cycle knobs consumed by the job scripts (fcst, prep_lbc, ...)
         # at runtime.  The jobs do not source the experiment config, so these
         # must be carried explicitly in task_common_vars.
@@ -157,8 +158,13 @@ def header_entities(xmlFile, expdir):
             f'\n<envar><name>MESHrrfs</name><value>{mesh_rrfs}</value></envar>'
         )
     else:
-        cyc_min_envar = ''
+        subcyc_envar = ''
         wofs_envar = ''
+
+    if os.getenv('DO_WOFS', 'FALSE').upper() == "TRUE":
+        wofs_switch_envar = "\n<envar><name>DO_WOFS</name><value>TRUE</value></envar>"
+    else:
+        wofs_switch_envar = ""
 
     if os.getenv('DO_CHEMISTRY', 'FALSE').upper() == "TRUE":
         chem_envar = "\n<envar><name>DO_CHEMISTRY</name><value>TRUE</value></envar>"
@@ -221,14 +227,14 @@ def header_entities(xmlFile, expdir):
 <envar><name>COMOUT</name><value><cyclestr>&COMROOT;/{net}/{rrfs_ver}/{run}.@Y@m@d/{hm}</cyclestr></value></envar>
 <envar><name>CDATE</name><value><cyclestr>{cdate_fmt}</cyclestr></value></envar>
 <envar><name>PDY</name><value><cyclestr>@Y@m@d</cyclestr></value></envar>
-<envar><name>cyc</name><value><cyclestr>{hm}</cyclestr></value></envar>{cyc_min_envar}
+<envar><name>cyc</name><value><cyclestr>{hm}</cyclestr></value></envar>{subcyc_envar}
 <envar><name>NET</name><value>{net}</value></envar>
 <envar><name>RUN</name><value>{run}</value></envar>
 <envar><name>rrfs_ver</name><value>{rrfs_ver}</value></envar>
 <envar><name>MPI_RUN_CMD</name><value>{mpi_run_cmd}</value></envar>
 <envar><name>MESH_NAME</name><value>{mesh_name}</value></envar>
 <envar><name>WGF</name><value>{wgf}</value></envar>
-<envar><name>CYC_INTERVAL</name><value>{cyc_interval}</value></envar>{chem_envar}{wofs_envar}
+<envar><name>CYC_INTERVAL</name><value>{cyc_interval}</value></envar>{wofs_switch_envar}{chem_envar}{wofs_envar}
 "
 >{entities_for_cycledef}
 '''

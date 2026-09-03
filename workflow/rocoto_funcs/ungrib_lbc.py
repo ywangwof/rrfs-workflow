@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from rocoto_funcs.base import xml_task, get_cascade_env, mesh_dir
+from rocoto_funcs.base import xml_task, get_cascade_env, mesh_dir, wofs_windowed
 
 # begin of ungrib_lbc --------------------------------------------------------
 
@@ -48,7 +48,7 @@ def ungrib_lbc(xmlFile, expdir, do_ensemble=False):
         ens_size = int(os.getenv('ENS_SIZE', '2'))
         # WoFS: only generate the distinct external LBC members (LBC_ENS_SIZE);
         # forecast members map onto them round-robin at the prep_lbc stage.
-        if os.getenv('EVENT_DATE', '').strip() != '':
+        if wofs_windowed():
             ens_size = int(os.getenv('LBC_ENS_SIZE', os.getenv('EXTRN_LBC_MEMBERS', ens_size)))
         ens_indices = ''.join(f'{i:03d} ' for i in range(1, int(ens_size) + 1)).strip()
         gmems = ''.join(f'{i:02d} ' for i in range(1, int(ens_size) + 1)).strip()
@@ -56,7 +56,7 @@ def ungrib_lbc(xmlFile, expdir, do_ensemble=False):
         # ((N-1) mod LBC_ENS_SIZE)+1 (round-robin), exposed as the parallel
         # metatask var #lbc_mem# used by LBC_EXTRN_MDL_FILENAME_PATTERN.
         lbc_mem_var = ''
-        if os.getenv('EVENT_DATE', '').strip() != '':
+        if wofs_windowed():
             lbc_ens_size = int(os.getenv('LBC_ENS_SIZE', os.getenv('EXTRN_LBC_MEMBERS', '10')))
             lbc_mems = ''.join(f'{((i - 1) % lbc_ens_size) + 1:03d} ' for i in range(1, int(ens_size) + 1)).strip()
             lbc_mem_var = f'\n<var name="lbc_mem">{lbc_mems}</var>'

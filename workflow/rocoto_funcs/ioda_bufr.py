@@ -12,7 +12,7 @@ def ioda_bufr(xmlFile, expdir):
         cycledefs = 'prod,spinup'
     # WoFS: no DA runs at the cold start, so obs prep is unnecessary there; run
     # on the da_nocold cycledef (which skips DA_STARTTIME) like the getkf tasks.
-    if os.getenv('EVENT_DATE', '').strip() and os.getenv('COLDSTART_CYCS_DO_DA', 'TRUE').upper() == 'FALSE':
+    if wofs_windowed() and os.getenv('COLDSTART_CYCS_DO_DA', 'TRUE').upper() == 'FALSE':
         cycledefs = 'da_nocold'
     OBSPATH = os.getenv("OBSPATH", 'OBSPATH_not_defined')
     # Task-specific EnVars beyond the task_common_vars

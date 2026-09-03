@@ -56,7 +56,7 @@ def setup_xml(HOMErrfs, expdir):
     # In WoFS windowed mode the "prod" cycledef is the sub-hourly DA cycle.
     # mpassit/upp on every DA cycle is off by default (DO_DA_POST) so that
     # post-processing is reserved for the free forecasts (Phase 3/4).
-    wofs_windowed_mode = os.getenv('EVENT_DATE', '').strip() != ''
+    wofs_windowed_mode = wofs_windowed()
     do_post = os.getenv("DO_POST", "TRUE").upper() == "TRUE"
     if wofs_windowed_mode:
         post_da_cycles = do_post and os.getenv("DO_DA_POST", "FALSE").upper() == "TRUE"

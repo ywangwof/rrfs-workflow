@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+from rocoto_funcs.base import wofs_windowed
 from datetime import datetime, timedelta
 
 
@@ -95,7 +96,7 @@ def smart_cycledefs():
         cycledef_domain = os.getenv('CYCLEDEF_DOMAIN', 'not_defined')
     else:  # compute cycledef automatically if no CYCLEDEF_* environment variables
         # WoFS windowed sub-hourly mode is fully self-contained
-        if os.getenv('EVENT_DATE', '').strip():
+        if wofs_windowed():
             return _wofs_windowed_cycledefs()
         lbc_cycs = os.getenv('LBC_CYCS', '00 12').strip().split()
         lbc_step = str(int(24 / len(lbc_cycs)))

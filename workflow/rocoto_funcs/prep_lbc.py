@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 import os
 from datetime import datetime, timedelta
-from rocoto_funcs.base import xml_task, get_cascade_env
-
+from rocoto_funcs.base import xml_task, get_cascade_env, wofs_windowed
 # begin of prep_lbc --------------------------------------------------------
 
 
@@ -38,7 +37,7 @@ def prep_lbc(xmlFile, expdir, do_ensemble=False):
         # ((N-1) mod LBC_ENS_SIZE)+1 (round-robin), exposed as #lbc_mem# so
         # only LBC_ENS_SIZE lbc members are generated (see lbc.py).
         lbc_mem_var = ''
-        if os.getenv('EVENT_DATE', '').strip():
+        if wofs_windowed():
             lbc_ens_size = int(os.getenv('LBC_ENS_SIZE', os.getenv('EXTRN_LBC_MEMBERS', '10')))
             lbc_mems = ''.join(f'{((i - 1) % lbc_ens_size) + 1:03d} ' for i in range(1, int(ens_size) + 1)).strip()
             lbc_mem_var = f'\n<var name="lbc_mem">{lbc_mems}</var>'

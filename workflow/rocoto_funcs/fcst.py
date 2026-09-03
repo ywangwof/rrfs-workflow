@@ -2,8 +2,7 @@
 import os
 import sys
 import textwrap
-from rocoto_funcs.base import xml_task, get_cascade_env
-
+from rocoto_funcs.base import xml_task, get_cascade_env, wofs_windowed
 # begin of fcst --------------------------------------------------------
 
 
@@ -150,7 +149,7 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
     # (e.g. 1500), so match the full @H@M token; the legacy assumption that
     # cold starts fall on whole hours (@H) would misclassify the sub-hourly
     # cycles 1515/1530/... that share the same hour as the cold start.
-    if os.getenv('EVENT_DATE', '').strip():
+    if wofs_windowed():
         cold_token = '@H@M'
         cold_vals = [os.getenv('DA_STARTTIME', '1500').strip().zfill(4)]
     else:
