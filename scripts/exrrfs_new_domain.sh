@@ -12,23 +12,27 @@ cd "${DATA}" || exit 1
 #   3) init_atmosphere -> ${MESH_NAME}.static.nc + ${MESH_NAME}.ugwp_oro_data.nc
 #   4) init_atmosphere -> ${MESH_NAME}.invariant.nc_L<nlevel>_<prefix> (optional,
 #      DO_DOMAIN_INVARIANT; ungribs DOMAIN_INVARIANT_GRIB2 for met interpolation)
-# The products are installed under ${MESHrrfs} (defaults to ${FIXrrfs}/${MESH_NAME};
-# a per-event COM path in WoFS windowed mode) for the ic/lbc/fcst tasks.
+# The products are installed under ${MESHrrfs} (a per-event COM dir) for the
+# ic/lbc/fcst tasks; new_domain never writes to the shared ${FIXrrfs}.
 # A guard skips the whole build if the mesh already exists.
 # ---------------------------------------------------------------------------
 #
-fixmesh="${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}"
+if [[ -z "${MESHrrfs:-}" ]]; then
+  echo "FATAL ERROR: MESHrrfs is not set; new_domain requires DO_NEW_DOMAIN=true"
+  err_exit
+fi
+meshdir="${MESHrrfs}"
 zeta_levels="${EXPDIR}/config/ZETA_LEVELS.txt"
 build_static="yes"
-if [[ -s "${fixmesh}/${MESH_NAME}.static.nc" && -s "${fixmesh}/${MESH_NAME}.grid.nc" ]]; then
+if [[ -s "${meshdir}/${MESH_NAME}.static.nc" && -s "${meshdir}/${MESH_NAME}.grid.nc" ]]; then
   need_invariant="no"
   if [[ "${DO_DOMAIN_INVARIANT^^}" == "TRUE" ]]; then
     nlevel=$(wc -l < "${zeta_levels}")
     inv_prefix="${DOMAIN_INVARIANT_PREFIX:-RRFSV2x}"
-    [[ -s "${fixmesh}/${MESH_NAME}.invariant.nc_L${nlevel}_${inv_prefix}" ]] || need_invariant="yes"
+    [[ -s "${meshdir}/${MESH_NAME}.invariant.nc_L${nlevel}_${inv_prefix}" ]] || need_invariant="yes"
   fi
   if [[ "${need_invariant}" == "no" ]]; then
-    echo "NOTE: ${fixmesh}/${MESH_NAME}.static.nc already exists; skipping domain build."
+    echo "NOTE: ${meshdir}/${MESH_NAME}.static.nc already exists; skipping domain build."
     exit 0
   fi
   echo "NOTE: static mesh exists but invariant is missing; building invariant only."
@@ -121,8 +125,8 @@ else
   #
   # Reuse the previously installed static mesh so only the invariant is built.
   #
-  ${cpreq} "${fixmesh}/${MESH_NAME}.static.nc" "${MESH_NAME}.static.nc"
-  ${cpreq} "${fixmesh}/graphinfo/${MESH_NAME}.graph.info.part.${DOMAIN_STATIC_NTASKS}" .
+  ${cpreq} "${meshdir}/${MESH_NAME}.static.nc" "${MESH_NAME}.static.nc"
+  ${cpreq} "${meshdir}/graphinfo/${MESH_NAME}.graph.info.part.${DOMAIN_STATIC_NTASKS}" .
 fi
 #
 # ---------------------------------------------------------------------------
@@ -136,7 +140,7 @@ fi
 if [[ "${DO_DOMAIN_INVARIANT^^}" == "TRUE" ]]; then
   nlevel=$(wc -l < "${zeta_levels}")
   inv_prefix="${DOMAIN_INVARIANT_PREFIX:-RRFSV2x}"
-  invariant_out="${fixmesh}/${MESH_NAME}.invariant.nc_L${nlevel}_${inv_prefix}"
+  invariant_out="${meshdir}/${MESH_NAME}.invariant.nc_L${nlevel}_${inv_prefix}"
   if [[ -s "${invariant_out}" ]]; then
     echo "NOTE: ${invariant_out} already exists; skipping invariant build."
   else
@@ -221,7 +225,7 @@ if [[ "${DO_DOMAIN_INVARIANT^^}" == "TRUE" ]]; then
       echo "FATAL ERROR: init_atmosphere failed to generate ${MESH_NAME}.init.nc (invariant)"
       err_exit
     fi
-    mkdir -p "${fixmesh}"
+    mkdir -p "${meshdir}"
     ${cpreq} "${MESH_NAME}.init.nc" "${invariant_out}"
     #
     # The fcst/getkf/jedivar/mpassit/lbc tasks build the invariant filename from
@@ -231,25 +235,25 @@ if [[ "${DO_DOMAIN_INVARIANT^^}" == "TRUE" ]]; then
     for link_prefix in ${DOMAIN_INVARIANT_LINK_PREFIXES}; do
       [[ "${link_prefix}" == "${inv_prefix}" ]] && continue
       ln -snf "${MESH_NAME}.invariant.nc_L${nlevel}_${inv_prefix}" \
-              "${fixmesh}/${MESH_NAME}.invariant.nc_L${nlevel}_${link_prefix}"
+              "${meshdir}/${MESH_NAME}.invariant.nc_L${nlevel}_${link_prefix}"
     done
     echo "new_domain: invariant '${invariant_out}' installed"
   fi
 fi
 #
 # ---------------------------------------------------------------------------
-# Install the mesh into ${fixmesh} (${MESHrrfs} or ${FIXrrfs}/${MESH_NAME})
+# Install the mesh into ${meshdir} (the per-event COM domain dir, ${MESHrrfs})
 # ---------------------------------------------------------------------------
 #
 if [[ "${build_static}" == "yes" ]]; then
-mkdir -p "${fixmesh}/graphinfo"
-${cpreq} "${MESH_NAME}.grid.nc"           "${fixmesh}/"
-${cpreq} "${MESH_NAME}.static.nc"         "${fixmesh}/"
-${cpreq} "${MESH_NAME}.graph.info"        "${fixmesh}/"
-[[ -s "${MESH_NAME}.ugwp_oro_data.nc" ]] && ${cpreq} "${MESH_NAME}.ugwp_oro_data.nc" "${fixmesh}/"
-${cpreq} "${MESH_NAME}".graph.info.part.* "${fixmesh}/graphinfo/"
+mkdir -p "${meshdir}/graphinfo"
+${cpreq} "${MESH_NAME}.grid.nc"           "${meshdir}/"
+${cpreq} "${MESH_NAME}.static.nc"         "${meshdir}/"
+${cpreq} "${MESH_NAME}.graph.info"        "${meshdir}/"
+[[ -s "${MESH_NAME}.ugwp_oro_data.nc" ]] && ${cpreq} "${MESH_NAME}.ugwp_oro_data.nc" "${meshdir}/"
+${cpreq} "${MESH_NAME}".graph.info.part.* "${meshdir}/graphinfo/"
 fi
 #
 date
-echo "new_domain: mesh '${MESH_NAME}' installed under ${fixmesh}"
+echo "new_domain: mesh '${MESH_NAME}' installed under ${meshdir}"
 exit 0
