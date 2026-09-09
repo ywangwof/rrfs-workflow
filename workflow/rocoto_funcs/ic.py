@@ -48,9 +48,12 @@ def ic(xmlFile, expdir, do_ensemble=False):
     if realtime.upper() == "TRUE":
         starttime = get_cascade_env(f"STARTTIME_{task_id}".upper())
         timedep = f'\n      <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
+    domaindep = ""
+    if os.getenv("DO_NEW_DOMAIN", "FALSE").upper() == "TRUE":
+        domaindep = '\n      <taskdep task="new_domain"/>'
     dependencies = f'''
   <dependency>
-    <and>{timedep}
+    <and>{timedep}{domaindep}
       <taskdep task="ungrib_ic{ensindexstr}"/>
     </and>
   </dependency>'''

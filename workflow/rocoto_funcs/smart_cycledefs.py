@@ -16,6 +16,7 @@ def smart_cycledefs():
         cycledef_spinup = os.getenv('CYCLEDEF_SPINUP', 'not_defined')
         cycledef_recenter = os.getenv('CYCLEDEF_RECENTER', 'not_defined')
         cold_cycs = os.getenv('COLDSTART_CYCS', '03 15').strip().split()
+        cycledef_domain = os.getenv('CYCLEDEF_DOMAIN', f'&Y1;&M1;&D1;{cold_cycs[0]}00 &Y1;&M1;&D1;{cold_cycs[0]}00 24:00:00')
     else:  # compute cycledef automatically if no CYCLEDEF_* environment variables
         lbc_cycs = os.getenv('LBC_CYCS', '00 12').strip().split()
         lbc_step = str(int(24 / len(lbc_cycs)))
@@ -41,6 +42,7 @@ def smart_cycledefs():
             cycledef_prod = f'&Y1;&M1;&D1;0000 &Y2;&M2;&D2;2300 {cyc_interval.zfill(2)}:00:00'
             cycledef_recenter = cycledef_ic
             cycledef_spinup = cycledef_prod
+            cycledef_domain = f'&Y1;&M1;&D1;{cold_cycs[0]}00 &Y1;&M1;&D1;{cold_cycs[0]}00 24:00:00'
         # ~~~~~
         # retros write out cycledefs explicitly without referencing XML entities
         else:
@@ -65,6 +67,7 @@ def smart_cycledefs():
             cycledef_ic = f'  {retrodates[0][0:8]}{cold_cyc1}00 {retrodates[1]}00 {ic_step.zfill(2)}:00:00'
             cycledef_lbc = f' {retrodates[0][0:8]}{lbc_cyc1}00 {retrodates[1]}00 {lbc_step.zfill(2)}:00:00'
             cycledef_prod = f'{retrodates[0][0:8]}{prod_cyc1}00 {retrodates[1]}00 {cyc_interval.zfill(2)}:00:00'
+            cycledef_domain = f'{retrodates[0][0:8]}{cold_cyc1}00 {retrodates[0][0:8]}{cold_cyc1}00 24:00:00'
             if recenter:
                 cycledef_recenter = f'{retrodates[0][0:8]}{recenter_cyc1}00 {retrodates[1]}00 {recenter_step.zfill(2)}:00:00'
             if spinup:
@@ -72,6 +75,8 @@ def smart_cycledefs():
     #
     # fill in the Cycledef dictionary
     dcCycledef = {}
+    if os.getenv('DO_NEW_DOMAIN', 'FALSE').upper() == 'TRUE':
+        dcCycledef['domain'] = f'{cycledef_domain}'
     if os.getenv('DO_RTMA', 'FALSE').upper() == 'FALSE':
         dcCycledef['ic'] = f'{cycledef_ic}'
         dcCycledef['lbc'] = f'{cycledef_lbc}'

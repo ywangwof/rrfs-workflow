@@ -103,6 +103,15 @@ case ${task_id} in
     module use "${HOMErrfs}/sorc/MPASSIT/modulefiles"
     module load "build.${MACHINE}.${COMPILER}"
     ;;
+  new_domain)
+    # init_atmosphere_model.x uses the standard rrfs env; project_hexes loads
+    # its own SMIOL module inside the ex-script (subshell). ungrib.x (invariant
+    # stage) also runs under the rrfs env; wgrib2 is loaded for grib2 handling.
+    module purge
+    module load "rrfs/${MACHINE}.${COMPILER}"
+    module load nco
+    module load wgrib2
+    ;;
   upp)
     module purge
     module use "${HOMErrfs}/sorc/UPP/modulefiles"

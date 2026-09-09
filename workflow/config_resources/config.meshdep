@@ -190,7 +190,27 @@ elif [[ ${MESH_NAME} == "global-15-3km" ]]; then
   export MPASSIT_NX=1800
   export MPASSIT_NY=1060
   export MPASSIT_DX=3000.0
-  export MPASSIT_REF_LAT=38.5
-  export MPASSIT_REF_LON=-97.5
+elif [[ ${MESH_NAME} == "wofs_mpas" ]]; then
+  # On-the-fly 3-km mesh built by the new_domain task from the DOMAIN_* knobs
+  # (see the exp file / config.base). The MPASSIT output (regular Lambert) grid
+  # is derived from the same DOMAIN_* knobs unless explicitly overridden via
+  # MPASSIT_DOMAIN_* in the exp file.
+  export FCST_DT=${FCST_DT:-20}
+  export FCST_SUBSTEPS=${FCST_SUBSTEPS:-4}
+  export FCST_RADT=${FCST_RADT:-5}
+  export UPP_DOMAIN="wofs."
+  export MRMS_GRIDSPACINGDEG=${MRMS_GRIDSPACINGDEG:-0.03}
+
+  export MPASSIT_NX=${MPASSIT_DOMAIN_NX:-$(awk "BEGIN{printf \"%d\", ${DOMAIN_SIZE_KM:-900}/${DOMAIN_DX_KM:-3}}")}
+  export MPASSIT_NY=${MPASSIT_DOMAIN_NY:-$(awk "BEGIN{printf \"%d\", ${DOMAIN_SIZE_KM:-900}/${DOMAIN_DX_KM:-3}}")}
+  export MPASSIT_DX=${MPASSIT_DOMAIN_DX:-$(awk "BEGIN{printf \"%.1f\", ${DOMAIN_DX_KM:-3}*1000}")}
+  export MPASSIT_REF_LAT=${MPASSIT_DOMAIN_REF_LAT:-${DOMAIN_CEN_LAT:-38.5}}
+  export MPASSIT_REF_LON=${MPASSIT_DOMAIN_REF_LON:-${DOMAIN_CEN_LON:-97.5}}
+
+  export NONVAR_LARC_NPTS=3
+  export NONVAR_METAR_IMPACT=20
+  export NONVAR_PROJ_NAME="CONUS"
+  export NONVAR_USERDX=${NONVAR_USERDX:-3000}
+  export NONVAR_SEARCH_RAD=1
 
 fi

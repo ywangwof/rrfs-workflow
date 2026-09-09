@@ -15,6 +15,7 @@ export REALTIME_MONTHS=${REALTIME_MONTHS:-2}
 export DO_FCST=${DO_FCST:-true}
 export DO_POST=${DO_POST:-true}
 export DO_IC_LBC=${DO_IC_LBC:-true}
+export DO_NEW_DOMAIN=${DO_NEW_DOMAIN:-false} # build the MPAS mesh on the fly (needs DOMAIN_CEN_LAT/LON)
 export USE_THE_LATEST_SATBIAS=${USE_THE_LATEST_SATBIAS:-false} # whether DA tasks use the latest satbias from the previous cycle
 export PHYSICS_SUITE=${PHYSICS_SUITE:-"hrrrv5"} # hrrrv5, mesoscale_reference, convection_permitting
 export KEEPDATA=${KEEPDATA:-"NO"}
@@ -100,6 +101,11 @@ export WALLTIME_NONVAR_BUFROBS=${WALLTIME_NONVAR_BUFROBS:-"00:25:00"}
 # nonvar_reflobs
 export NODES_NONVAR_REFLOBS=${NODES_NONVAR_REFLOBS:-"<nodes>1:ppn=40</nodes>"}
 export WALLTIME_NONVAR_REFLOBS=${WALLTIME_NONVAR_REFLOBS:-"00:25:00"}
+
+# new_domain (build the MPAS mesh on the fly before any cycle runs)
+export NODES_NEW_DOMAIN=${NODES_NEW_DOMAIN:-"<nodes>1:ppn=96</nodes>"}
+export WALLTIME_NEW_DOMAIN=${WALLTIME_NEW_DOMAIN:-"00:40:00"}
+export KEEPDATA_NEW_DOMAIN=${KEEPDATA_NEW_DOMAIN:-"YES"}
 
 # ic
 export NODES_IC=${NODES_IC:-"<nodes>1:ppn=40</nodes>"}

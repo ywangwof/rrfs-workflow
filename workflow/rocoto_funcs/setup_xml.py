@@ -7,6 +7,7 @@ from rocoto_funcs.base import header_begin, header_entities, header_end, \
 from rocoto_funcs.smart_cycledefs import smart_cycledefs
 from rocoto_funcs.smart_post_groups import smart_post_groups
 from rocoto_funcs.smart_save4next_groups import smart_save4next_groups
+from rocoto_funcs.new_domain import new_domain
 from rocoto_funcs.ungrib_ic import ungrib_ic
 from rocoto_funcs.ungrib_lbc import ungrib_lbc
 from rocoto_funcs.ic import ic
@@ -67,6 +68,11 @@ def setup_xml(HOMErrfs, expdir):
         log_fpath = f'&LOGROOT;/&RUN;.@Y@m@d/@H/&WGF;/&RUN;.log'
         wflow_log(xmlFile, log_fpath)
         wflow_cycledefs(xmlFile, dcCycledef)
+
+# ---------------------------------------------------------------------------
+# one-time domain creation (must precede every other task)
+        if os.getenv("DO_NEW_DOMAIN", "FALSE").upper() == "TRUE":
+            new_domain(xmlFile, expdir)
 
 # ---------------------------------------------------------------------------
 # assemble tasks for a deterministic experiment

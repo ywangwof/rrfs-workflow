@@ -1,0 +1,16 @@
+&mesh
+  cell_spacing_km  = @DOMAIN_DX_KM@,
+  mesh_length_x_km = @DOMAIN_SIZE_KM@,
+  mesh_length_y_km = @DOMAIN_SIZE_KM@,
+  earth_radius_km  = @DOMAIN_EARTH_RADIUS_KM@,
+/
+&projection
+  projection_type = "lambert_conformal",
+/
+&lambert_conformal
+  reference_longitude_degrees = @DOMAIN_CEN_LON@,
+  reference_latitude_degrees  = @DOMAIN_CEN_LAT@,
+  standard_parallel_1_degrees = @DOMAIN_STD_PAR1@,
+  standard_parallel_2_degrees = @DOMAIN_STD_PAR2@,
+  standard_longitude_degrees  = @DOMAIN_CEN_LON@,
+/
