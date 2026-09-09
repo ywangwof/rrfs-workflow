@@ -67,7 +67,7 @@ def lbc(xmlFile, expdir, do_ensemble=False):
         starttime = get_cascade_env(f"STARTTIME_{task_id}".upper())
         timedep = f'\n    <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
     domaindep = ""
-    if os.getenv("DO_NEW_DOMAIN", "FALSE").upper() == "TRUE":
+    if os.getenv("DO_WOFS", "FALSE").upper() == "TRUE":
         domaindep = '\n    <taskdep task="new_domain"/>'
     dependencies = f'''
   <dependency>

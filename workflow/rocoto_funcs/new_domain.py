@@ -12,7 +12,7 @@ from rocoto_funcs.base import xml_task, get_cascade_env
 # the regular ic/lbc/fcst tasks find them exactly where they expect the fix mesh
 # files. The task runs on the single-cycle 'domain' cycledef (smart_cycledefs.py).
 #
-# DO_NEW_DOMAIN works for ANY experiment: only DOMAIN_CEN_LAT / DOMAIN_CEN_LON are
+# DO_WOFS works for ANY experiment: only DOMAIN_CEN_LAT / DOMAIN_CEN_LON are
 # required (they default to *_not_defined so the task fails loudly if omitted);
 # every other DOMAIN_* knob falls back to the WoFS 3-km default.
 

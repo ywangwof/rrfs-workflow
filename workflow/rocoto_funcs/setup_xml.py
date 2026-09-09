@@ -71,7 +71,7 @@ def setup_xml(HOMErrfs, expdir):
 
 # ---------------------------------------------------------------------------
 # one-time domain creation (must precede every other task)
-        if os.getenv("DO_NEW_DOMAIN", "FALSE").upper() == "TRUE":
+        if os.getenv("DO_WOFS", "FALSE").upper() == "TRUE":
             new_domain(xmlFile, expdir)
 
 # ---------------------------------------------------------------------------

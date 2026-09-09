@@ -18,7 +18,7 @@ cd "${DATA}" || exit 1
 # ---------------------------------------------------------------------------
 #
 if [[ -z "${MESHrrfs:-}" ]]; then
-  echo "FATAL ERROR: MESHrrfs is not set; new_domain requires DO_NEW_DOMAIN=true"
+  echo "FATAL ERROR: MESHrrfs is not set; new_domain requires DO_WOFS=true"
   err_exit
 fi
 meshdir="${MESHrrfs}"

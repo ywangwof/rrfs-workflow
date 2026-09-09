@@ -89,7 +89,7 @@ def smart_cycledefs():
     os.environ['MESH_ANCHOR_PDY'] = anchor_pdy
     os.environ['MESH_ANCHOR_CYC'] = anchor_cyc
     os.environ['MESH_ANCHOR_SUBCYC'] = anchor_subcyc
-    if os.getenv('DO_NEW_DOMAIN', 'FALSE').upper() == 'TRUE':
+    if os.getenv('DO_WOFS', 'FALSE').upper() == 'TRUE':
         dcCycledef['domain'] = f'{cycledef_domain}'
     if os.getenv('DO_RTMA', 'FALSE').upper() == 'FALSE':
         dcCycledef['ic'] = f'{cycledef_ic}'
