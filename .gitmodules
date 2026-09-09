@@ -48,3 +48,8 @@
 	url = https://github.com/RRFSx/regrid-wrapper.git
 	branch = main
 	ignore = all
+[submodule "sorc/MPAS-Tools"]
+	path = sorc/MPAS-Tools
+	url = https://github.com/MPAS-Dev/MPAS-Tools
+	branch = master
+	ignore = all

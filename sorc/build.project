@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1090,1091
+set -x
+date
+rundir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+HOMErrfs="$(dirname "$rundir")"
+COMPILER=${COMPILER:-intel}
+
+source "${HOMErrfs}/workflow/tools/detect_machine.sh"
+"${HOMErrfs}/workflow/tools/init.sh"
+
+module purge
+module use "${HOMErrfs}/modulefiles"
+module load "rrfs/${MACHINE}.${COMPILER}"
+module list
+
+# the hex_projection Makefile relies on nf-config/nc-config; make sure the
+# netCDF-Fortran/netCDF-C bin directories are on PATH
+[[ -n "${NetCDF_FORTRAN_ROOT}" ]] && export PATH="${NetCDF_FORTRAN_ROOT}/bin:${PATH}"
+[[ -n "${NetCDF_C_ROOT}" ]] && export PATH="${NetCDF_C_ROOT}/bin:${PATH}"
+
+SRCDIR="${HOMErrfs}/sorc/MPAS-Tools/mesh_tools/hex_projection"
+EXEC="${SRCDIR}/project_hexes"
+
+cd "${SRCDIR}" || exit 1
+make clean
+make
+
+mkdir -p "${HOMErrfs}/exec"
+echo "copy ${EXEC} to ../exec/project_hexes.x"
+cp "${EXEC}" "${HOMErrfs}/exec/project_hexes.x"
+
+exit 0
