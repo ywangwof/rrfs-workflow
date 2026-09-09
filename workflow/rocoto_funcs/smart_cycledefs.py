@@ -18,7 +18,8 @@ def smart_cycledefs():
         cold_cycs = os.getenv('COLDSTART_CYCS', '03 15').strip().split()
         cycledef_domain = os.getenv('CYCLEDEF_DOMAIN', f'&Y1;&M1;&D1;{cold_cycs[0]}00 &Y1;&M1;&D1;{cold_cycs[0]}00 24:00:00')
         anchor_pdy = '&Y1;&M1;&D1;'
-        anchor_hhmm = f'{cold_cycs[0]}00'
+        anchor_cyc = f'{cold_cycs[0]}'
+        anchor_subcyc = '00'
     else:  # compute cycledef automatically if no CYCLEDEF_* environment variables
         lbc_cycs = os.getenv('LBC_CYCS', '00 12').strip().split()
         lbc_step = str(int(24 / len(lbc_cycs)))
@@ -46,7 +47,8 @@ def smart_cycledefs():
             cycledef_spinup = cycledef_prod
             cycledef_domain = f'&Y1;&M1;&D1;{cold_cycs[0]}00 &Y1;&M1;&D1;{cold_cycs[0]}00 24:00:00'
             anchor_pdy = '&Y1;&M1;&D1;'
-            anchor_hhmm = f'{cold_cycs[0]}00'
+            anchor_cyc = f'{cold_cycs[0]}'
+            anchor_subcyc = '00'
         # ~~~~~
         # retros write out cycledefs explicitly without referencing XML entities
         else:
@@ -73,7 +75,8 @@ def smart_cycledefs():
             cycledef_prod = f'{retrodates[0][0:8]}{prod_cyc1}00 {retrodates[1]}00 {cyc_interval.zfill(2)}:00:00'
             cycledef_domain = f'{retrodates[0][0:8]}{cold_cyc1}00 {retrodates[0][0:8]}{cold_cyc1}00 24:00:00'
             anchor_pdy = f'{retrodates[0][0:8]}'
-            anchor_hhmm = f'{cold_cyc1}00'
+            anchor_cyc = f'{cold_cyc1}'
+            anchor_subcyc = '00'
             if recenter:
                 cycledef_recenter = f'{retrodates[0][0:8]}{recenter_cyc1}00 {retrodates[1]}00 {recenter_step.zfill(2)}:00:00'
             if spinup:
@@ -84,7 +87,8 @@ def smart_cycledefs():
     # Publish the cold-start anchor so header_entities() can build a constant
     # per-event MESHrrfs path (same for every cycle, including post-midnight ones).
     os.environ['MESH_ANCHOR_PDY'] = anchor_pdy
-    os.environ['MESH_ANCHOR_HHMM'] = anchor_hhmm
+    os.environ['MESH_ANCHOR_CYC'] = anchor_cyc
+    os.environ['MESH_ANCHOR_SUBCYC'] = anchor_subcyc
     if os.getenv('DO_NEW_DOMAIN', 'FALSE').upper() == 'TRUE':
         dcCycledef['domain'] = f'{cycledef_domain}'
     if os.getenv('DO_RTMA', 'FALSE').upper() == 'FALSE':

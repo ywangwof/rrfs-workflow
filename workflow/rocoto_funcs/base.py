@@ -109,19 +109,26 @@ def header_entities(xmlFile, expdir):
     else:
         text = ''
     #
-    # Per-event domain directory under COM (Approach A): when SUBCYC_INTERVAL>0
-    # each case builds its own mesh, so new_domain writes here and every
-    # downstream task reads the mesh from here instead of ${FIXrrfs}/${MESH_NAME}.
-    # Anchored on the cold-start cycle (MESH_ANCHOR_* from smart_cycledefs), NOT
-    # the running cycle, so all cycles of the event resolve the same directory.
+    # Per-event domain directory under COM: when DO_NEW_DOMAIN=true the mesh is
+    # built on the fly and installed under COM (never the shared, possibly
+    # read-only ${FIXrrfs}/${MESH_NAME}); every downstream task then reads the
+    # mesh from the same place. The path is anchored on the cold-start cycle
+    # (MESH_ANCHOR_* from smart_cycledefs), NOT the running cycle, so all cycles
+    # of the event - including post-midnight ones - resolve the same directory.
+    #   DO_NEW_DOMAIN=false          -> no MESHrrfs; tasks fall back to FIXrrfs.
+    #   SUBCYC_INTERVAL=0/unset      -> {RUN}.{PDY}/{cyc}[/{WGF}]/domain/{MESH}
+    #   SUBCYC_INTERVAL>0            -> {RUN}.{PDY}/{cyc}{subcyc}[/{WGF}]/domain/{MESH}
     try:
         subcyc_interval = int(os.getenv('SUBCYC_INTERVAL', '0') or '0')
     except ValueError:
         subcyc_interval = 0
-    if subcyc_interval > 0 and wgf.strip():
+    if os.getenv('DO_NEW_DOMAIN', 'FALSE').upper() == 'TRUE':
         anchor_pdy = os.getenv('MESH_ANCHOR_PDY', '')
-        anchor_hhmm = os.getenv('MESH_ANCHOR_HHMM', '')
-        mesh_rrfs = f'&COMROOT;/{net}/{rrfs_ver}/{run}.{anchor_pdy}/{anchor_hhmm}/{wgf}/domain/{mesh_name}'
+        anchor_cyc = os.getenv('MESH_ANCHOR_CYC', '')
+        anchor_subcyc = os.getenv('MESH_ANCHOR_SUBCYC', '')
+        time_part = f'{anchor_cyc}{anchor_subcyc}' if subcyc_interval > 0 else f'{anchor_cyc}'
+        wgf_part = f'/{wgf}' if wgf.strip() else ''
+        mesh_rrfs = f'&COMROOT;/{net}/{rrfs_ver}/{run}.{anchor_pdy}/{time_part}{wgf_part}/domain/{mesh_name}'
         mesh_envar = f'\n<envar><name>MESHrrfs</name><value>{mesh_rrfs}</value></envar>'
     else:
         mesh_envar = ''
