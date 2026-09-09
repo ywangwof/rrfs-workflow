@@ -14,7 +14,7 @@ cd "${DATA}" || exit 1
 #-----------------------------------------------------------------------
 #
 
-meshgriddir="${FIXrrfs}/${MESH_NAME}"
+meshgriddir="${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}"
 echo "INFO: meshgriddir is ${meshgriddir}"
 
 ${cpreq} "${meshgriddir}"/"${MESH_NAME}".grid.nc mesh.nc

@@ -40,7 +40,7 @@ for hr in ${BLENDING_CYCS:-"99"}; do
       ln -sfn "${grid_info_file}" .
       ln -sfn "${blend_fix}"/global*grid.nc .
       ln -sfn "${blend_fix}/${MESH_NAME}"/conus*grid.nc .
-      ln -sfn "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.grid.nc" .
+      ln -sfn "${MESHrrfs:-${FIXrrfs}/${MESH_NAME}}/${MESH_NAME}.grid.nc" .
 
       small_file=$(basename "${small_scale_file}")
       large_file=$(basename "${large_scale_file}")

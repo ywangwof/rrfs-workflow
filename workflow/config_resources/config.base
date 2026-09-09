@@ -16,6 +16,7 @@ export DO_FCST=${DO_FCST:-true}
 export DO_POST=${DO_POST:-true}
 export DO_IC_LBC=${DO_IC_LBC:-true}
 export DO_NEW_DOMAIN=${DO_NEW_DOMAIN:-false} # build the MPAS mesh on the fly (needs DOMAIN_CEN_LAT/LON)
+export SUBCYC_INTERVAL=${SUBCYC_INTERVAL:-0} # sub-hourly cadence in minutes; >0 routes the on-the-fly mesh to a per-event COM dir
 export USE_THE_LATEST_SATBIAS=${USE_THE_LATEST_SATBIAS:-false} # whether DA tasks use the latest satbias from the previous cycle
 export PHYSICS_SUITE=${PHYSICS_SUITE:-"hrrrv5"} # hrrrv5, mesoscale_reference, convection_permitting
 export KEEPDATA=${KEEPDATA:-"NO"}

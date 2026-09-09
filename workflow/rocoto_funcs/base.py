@@ -109,6 +109,23 @@ def header_entities(xmlFile, expdir):
     else:
         text = ''
     #
+    # Per-event domain directory under COM (Approach A): when SUBCYC_INTERVAL>0
+    # each case builds its own mesh, so new_domain writes here and every
+    # downstream task reads the mesh from here instead of ${FIXrrfs}/${MESH_NAME}.
+    # Anchored on the cold-start cycle (MESH_ANCHOR_* from smart_cycledefs), NOT
+    # the running cycle, so all cycles of the event resolve the same directory.
+    try:
+        subcyc_interval = int(os.getenv('SUBCYC_INTERVAL', '0') or '0')
+    except ValueError:
+        subcyc_interval = 0
+    if subcyc_interval > 0 and wgf.strip():
+        anchor_pdy = os.getenv('MESH_ANCHOR_PDY', '')
+        anchor_hhmm = os.getenv('MESH_ANCHOR_HHMM', '')
+        mesh_rrfs = f'&COMROOT;/{net}/{rrfs_ver}/{run}.{anchor_pdy}/{anchor_hhmm}/{wgf}/domain/{mesh_name}'
+        mesh_envar = f'\n<envar><name>MESHrrfs</name><value>{mesh_rrfs}</value></envar>'
+    else:
+        mesh_envar = ''
+    #
     text = text + f'''
 <!ENTITY MACHINE         "{MACHINE}">
 <!ENTITY HOMErrfs        "{HOMErrfs}">
@@ -139,7 +156,7 @@ def header_entities(xmlFile, expdir):
 <envar><name>rrfs_ver</name><value>{rrfs_ver}</value></envar>
 <envar><name>MPI_RUN_CMD</name><value>{mpi_run_cmd}</value></envar>
 <envar><name>MESH_NAME</name><value>{mesh_name}</value></envar>
-<envar><name>WGF</name><value>{wgf}</value></envar>
+<envar><name>WGF</name><value>{wgf}</value></envar>{mesh_envar}
 <envar><name>CYC_INTERVAL</name><value>{cyc_interval}</value></envar>{chem_envar}
 "
 >{entities_for_cycledef}
