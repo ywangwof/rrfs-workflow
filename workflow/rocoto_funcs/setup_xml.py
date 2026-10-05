@@ -30,6 +30,7 @@ from rocoto_funcs.ioda_airnow import ioda_airnow
 from rocoto_funcs.ioda_bufr import ioda_bufr
 from rocoto_funcs.ioda_mrms_refl import ioda_mrms_refl
 from rocoto_funcs.ioda_cwp import ioda_cwp
+from rocoto_funcs.ioda_okmeso import ioda_okmeso
 from rocoto_funcs.nonvar_bufrobs import nonvar_bufrobs
 from rocoto_funcs.nonvar_reflobs import nonvar_reflobs
 from rocoto_funcs.nonvar_cldana import nonvar_cldana
@@ -99,6 +100,8 @@ def setup_xml(HOMErrfs, expdir):
                 ioda_mrms_refl(xmlFile, expdir)
             if os.getenv("DO_CWP", "FALSE").upper() == "TRUE":
                 ioda_cwp(xmlFile, expdir)
+            if os.getenv("DO_MESONET", "FALSE").upper() == "TRUE":
+                ioda_okmeso(xmlFile, expdir)
             if os.getenv("DO_NONVAR_CLOUD_ANA", "FALSE").upper() == "TRUE":
                 nonvar_bufrobs(xmlFile, expdir)
                 nonvar_reflobs(xmlFile, expdir)
@@ -171,6 +174,8 @@ def setup_xml(HOMErrfs, expdir):
                 ioda_mrms_refl(xmlFile, expdir)
             if os.getenv("DO_CWP", "FALSE").upper() == "TRUE":
                 ioda_cwp(xmlFile, expdir)
+            if os.getenv("DO_MESONET", "FALSE").upper() == "TRUE":
+                ioda_okmeso(xmlFile, expdir)
             if os.getenv("DO_NONVAR_CLOUD_ANA", "FALSE").upper() == "TRUE":
                 nonvar_bufrobs(xmlFile, expdir)
                 nonvar_reflobs(xmlFile, expdir)

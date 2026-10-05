@@ -37,6 +37,42 @@ def min_to_offset(total_min):
     return f'{total_min // 60}:{total_min % 60:02d}:00'
 
 
+def sec_to_offset(total_sec):
+    """Seconds -> Rocoto 'H:MM:SS' style offset magnitude (no sign)."""
+    total_sec = int(total_sec)
+    return f'{total_sec // 3600}:{(total_sec % 3600) // 60:02d}:{total_sec % 60:02d}'
+
+
+def obs_file_dependency(task_id, fpath, lookback_min, timeout_sec, age="00:00:30"):
+    """Rocoto dependency that waits for a raw obs file, with a timeout fallback.
+
+    The task becomes ready as soon as a file matching `fpath` (a cyclestr
+    template) exists for any minute from the cycle time back to `lookback_min`
+    minutes earlier (mirroring the ex-script search), or once the wall clock
+    passes cycle time + `timeout_sec`, whichever comes first.  On timeout the
+    ex-script finds no file and skips gracefully, so the DA is never blocked.
+    In realtime mode the task additionally honors STARTTIME_<TASK>.
+    """
+    datadeps = ''
+    for j in range(int(lookback_min) + 1):
+        offset = f' offset="-{min_to_offset(j)}"' if j > 0 else ''
+        datadeps += f'\n      <datadep age="{age}"><cyclestr{offset}>{fpath}</cyclestr></datadep>'
+    timeoutdep = f'\n      <timedep><cyclestr offset="{sec_to_offset(timeout_sec)}">@Y@m@d@H@M00</cyclestr></timedep>'
+
+    starttimedep = ''
+    if os.getenv("REALTIME", "false").upper() == "TRUE":
+        starttime = get_cascade_env(f"STARTTIME_{task_id}".upper())
+        starttimedep = f'\n    <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
+
+    return f'''
+  <dependency>
+  <and>{starttimedep}
+    <or>{datadeps}{timeoutdep}
+    </or>
+  </and>
+  </dependency>'''
+
+
 def mesh_dir():
     """Directory holding the experiment mesh files (<mesh>.static.nc, etc.).
 
@@ -140,6 +176,7 @@ def header_entities(xmlFile, expdir):
         mrms_clear_dir = os.getenv('MRMS_CLEAR_DIR', '').strip()
         vr_dir = os.getenv('VR_DIR', '').strip()
         obs_cwp_dir = os.getenv('OBS_CWP_DIR', '').strip()
+        okmeso_dir = os.getenv('OKMESO_DIR', '').strip()
         # Per-event domain directory under COM (Approach A): each WoFS case has
         # its own mesh, so create_domain writes here and every downstream task
         # reads the mesh from here instead of the shared ${FIXrrfs}/${MESH_NAME}.
@@ -155,6 +192,7 @@ def header_entities(xmlFile, expdir):
             f'\n<envar><name>MRMS_CLEAR_DIR</name><value>{mrms_clear_dir}</value></envar>'
             f'\n<envar><name>VR_DIR</name><value>{vr_dir}</value></envar>'
             f'\n<envar><name>OBS_CWP_DIR</name><value>{obs_cwp_dir}</value></envar>'
+            f'\n<envar><name>OKMESO_DIR</name><value>{okmeso_dir}</value></envar>'
             f'\n<envar><name>MESHrrfs</name><value>{mesh_rrfs}</value></envar>'
         )
     else:

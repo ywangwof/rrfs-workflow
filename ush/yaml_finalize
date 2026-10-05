@@ -25,6 +25,9 @@ emptyObsSpaceAction = os.getenv("EMPTY_OBS_SPACE_ACTION", "@emptyObsSpaceAction@
 
 START_TYPE = os.getenv("START_TYPE", "START_TYPE_NOT_DEFINED")
 GETKF_TYPE = os.getenv("GETKF_TYPE", "TYPE_NOT_DEFINED")
+# WoFS experiments set EVENT_DATE; it gates the WoFS-only LETKF tweaks below so that
+# legacy RRFS getkf experiments produce a byte-identical finalized yaml.
+IS_WOFS = bool(os.getenv("EVENT_DATE", "").strip())
 use_conv_sat_info = (os.getenv("USE_CONV_SAT_INFO", "True").upper() != "FALSE")
 SAT_USELIST = os.getenv("SAT_USELIST", "")
 
@@ -163,6 +166,24 @@ driver:
 if ytype == "getkf" and GETKF_TYPE == "solver":
     block = hy.text_to_yblock(solver_driver_str)
     hy.modify(data, "driver", block)
+
+# ------------------------------------------------------------------------------------
+# WoFS LETKF only: for the solver/post phases iterate the model grid in 3-D.
+#   * iterator dimension 3: the shared template keeps `iterator dimension: 2`, which is
+#     correct for the observer (it works in obs space).  The MPAS 2-D iterator hard-codes
+#     the column height to -99999 m, which zeroes the 4 km vertical localization so the
+#     LETKF weights collapse and the increment is identically zero.  The solver/post must
+#     use dimension 3 so real column heights drive the vertical localization.
+# The posterior ensemble is written in place to ./data/ens/mem%{member}%.nc (the prep_ic
+# restart symlinks), matching the legacy RRFS getkf behavior; exrrfs_getkf.sh no longer
+# overlays a separate thin ./data/ana stream.
+# Gated on EVENT_DATE so legacy RRFS getkf experiments are byte-identical.
+if ytype == "getkf" and IS_WOFS and GETKF_TYPE in ("solver", "post"):
+    for i, line in enumerate(data):
+        if line.strip() == "iterator dimension: 2":
+            indent = line[:len(line) - len(line.lstrip())]
+            data[i] = f"{indent}iterator dimension: 3"
+            break
 
 # ------------------------------------------------------------------------------------
 # microphysics scheme: fill the #@MP_STATE_VARS@ marker in the member state variables

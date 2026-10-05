@@ -63,6 +63,23 @@ fi
 for i in $(seq -w 001 "${ENS_SIZE}"); do
   ln -snf "${UMBRELLA_PREP_IC_DATA}/mem${i}/${initial_file}" "ens/mem${i}.nc"
 done
+# WoFS reflectivity DA: for the posterior observer, compute H(xa) for refl10cm
+# from the forward forecast's t=0 refl10cm (recomputed from the analyzed
+# hydrometeors by init_reflectivity_diagnostic).  Non-mutating: materialize a
+# local copy of each member and overlay only refl10cm, leaving the shared
+# analysis file in the prep_ic umbrella untouched.
+if [[ "${GETKF_TYPE}" == "post" && "${GETKF_POST_REFL_FROM_FCST:-FALSE}" == "TRUE" ]]; then
+  for i in $(seq -w 001 "${ENS_SIZE}"); do
+    reflt0_file="${COMOUT}/fcst/${WGF}/mem${i}/reflt0.${timestr}.nc"
+    if [[ -s "${reflt0_file}" ]]; then
+      cp -L "${UMBRELLA_PREP_IC_DATA}/mem${i}/${initial_file}" "ens/mem${i}.nc.tmp"
+      ncks -A -v refl10cm "${reflt0_file}" "ens/mem${i}.nc.tmp"
+      mv -f "ens/mem${i}.nc.tmp" "ens/mem${i}.nc"
+    else
+      echo "WARNING: reflt0 not found, keeping analysis refl10cm for mem${i}: ${reflt0_file}"
+    fi
+  done
+fi
 #
 # enter the run directory again
 #
@@ -121,7 +138,11 @@ if [[ ${START_TYPE} == "warm" ]] || [[ ${START_TYPE} == "cold" && ${COLDSTART_CY
   export OMP_NUM_THREADS=1
 
   source prep_step
-  ${cpreq} "${EXECrrfs}"/mpasjedi_enkf.x .
+  # Allow a per-experiment override of the enkf executable (temporary A/B
+  # testing).  When ENKF_EXEC is unset this is byte-identical to the previous
+  # behavior (uses ${EXECrrfs}/mpasjedi_enkf.x from the workflow's exec dir).
+  ENKF_EXEC=${ENKF_EXEC:-${EXECrrfs}/mpasjedi_enkf.x}
+  ${cpreq} "${ENKF_EXEC}" ./mpasjedi_enkf.x
   ${MPI_RUN_CMD} ./mpasjedi_enkf.x getkf.yaml log.out
   # check the status
   export err=$?

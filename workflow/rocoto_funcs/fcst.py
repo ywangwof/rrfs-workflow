@@ -44,6 +44,11 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
     }
     if os.getenv('FCST_CONVECTION_SCHEME', 'FALSE').upper() == 'TRUE':
         dcTaskEnv['FCST_CONVECTION_SCHEME'] = "TRUE"
+    # WoFS reflectivity DA: when enabled, the forward DA forecast writes a t=0
+    # reflt0 file (refl10cm recomputed from the analysis) for getkf_post's H(xa).
+    # Gated so other experiments regenerate byte-identical XML.
+    if os.getenv('GETKF_POST_REFL_FROM_FCST', 'FALSE').upper() == 'TRUE':
+        dcTaskEnv['GETKF_POST_REFL_FROM_FCST'] = 'TRUE'
     if os.getenv('FCST_GFL_SUB3D', '') != '':
         dcTaskEnv['FCST_GFL_SUB3D'] = os.getenv('FCST_GFL_SUB3D')
     if os.getenv('MPASOUT_SAVE2COM_HRS', '') != '':

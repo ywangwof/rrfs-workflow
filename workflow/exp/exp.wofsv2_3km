@@ -153,6 +153,11 @@ export VR_DIR="/scratch3/NAGAPE/wof/kknopfmeier/VR"
 #   ${OBS_CWP_DIR}/YYYYmmdd/YYYYmmddHHMM_GOES19_CWP_OBS.nc
 export DO_CWP=true
 export OBS_CWP_DIR="/scratch3/NAGAPE/wof/kknopfmeier/CWP"
+# ioda_cwp waits for the raw CWP file (up to CWP_LOOKBACK_MIN minutes before the
+# cycle time); if none appears within CWP_TIMEOUT_SEC seconds after the cycle
+# time, it runs anyway and the DA proceeds without CWP obs.
+#export CWP_LOOKBACK_MIN=4
+export CWP_TIMEOUT_SEC=300
 export FCST_STARTTIME="1700"      # HHMM, first free-forecast launch
 export FCST_ENDTIME="0300"        # HHMM, last free-forecast launch (next day if <= start)
 export FREE_FCST_INTERVAL_MIN=60  # minutes between free-forecast launches

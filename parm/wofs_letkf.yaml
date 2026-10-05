@@ -541,6 +541,61 @@ observations:
           ioda vertical coordinate group: MetaData
           max nobs: 1000
     - obs space:
+        name: okmeso
+        distribution:
+          name: RoundRobin
+          halo size: 25000
+        obsdatain:
+          engine:
+            type: H5File
+            obsfile: data/obs/ioda_okmeso_obs.nc
+            missing file action: "warn"
+        obsdataout:
+          engine:
+            type: H5File
+            obsfile: jdiag_okmeso.nc
+        simulated variables: [airTemperature, specificHumidity, stationPressure, windEastward, windNorthward]
+      obs error:
+        covariance model: diagonal
+      obs operator:
+        name: SfcCorrected
+        correction scheme to use: GSL
+        geovar_sfc_geomz: geopotential_height_at_surface
+        geovar_geomz: geopotential_height
+        gsl parameters:
+          temperature lapse rate option: Local
+          temperature local lapse rate level: 10
+          temperature lapse rate threshold: true
+          min threshold: 0.5
+          max threshold: 10.0
+        variables:
+          - name: airTemperature
+          - name: specificHumidity
+          - name: stationPressure
+          - name: windEastward
+          - name: windNorthward
+      linear obs operator:
+        name: Identity
+      obs filters:
+        - filter: Background Check
+          apply at iterations: 0,1
+          filter variables:
+          - name: airTemperature
+          - name: specificHumidity
+          - name: stationPressure
+          - name: windEastward
+          - name: windNorthward
+          threshold: 4.0
+          action:
+            name: reject
+      obs localizations:
+        - localization method: 3D Gaspari-Cohn
+          horizontal lengthscale: 25000.0
+          vertical lengthscale: 7000.0
+          ioda vertical coordinate: height
+          ioda vertical coordinate group: MetaData
+          max nobs: 1000
+    - obs space:
         name: adpsfc_t181
         distribution:
           name: "RoundRobin"

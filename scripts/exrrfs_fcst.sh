@@ -168,6 +168,14 @@ if [[ "${wofs_da}" == 'true' ]]; then
   sed -i -e '/name="lbc_in"/,/\/>/ s#input_interval="[^"]*"#input_interval="'"${lbc_gap_str}"'"#' streams.atmosphere
 fi
 #
+# WoFS reflectivity DA: write a t=0 "reflt0" file holding refl10cm recomputed
+# from the analyzed hydrometeors by init_reflectivity_diagnostic.  getkf_post
+# uses it to compute the posterior H(xa) for reflectivity.  Gated and WoFS-DA
+# only, so other experiments produce a byte-identical streams.atmosphere.
+if [[ "${wofs_da}" == 'true' && "${GETKF_POST_REFL_FROM_FCST:-FALSE}" == "TRUE" ]]; then
+  sed -i 's#</streams>#<stream name="reflt0"\n        type="output"\n        output_interval="initial_only"\n        filename_template="reflt0.$Y-$M-$D_$h.$m.$s.nc"\n        io_type="pnetcdf,cdf5"\n        clobber_mode="replace_files">\n    <var name="refl10cm"/>\n</stream>\n\n</streams>#' streams.atmosphere
+fi
+#
 # chemistry related processing
 if [[ "${DO_CHEMISTRY^^}" == "TRUE" ]]; then
   source "${USHrrfs}"/chem_fcst.sh
@@ -272,6 +280,17 @@ else
           echo "WARNING: mpasout_file not found - ${mpasout_file}"
         fi
       done
+    fi
+    # WoFS reflectivity DA: stage the t=0 reflt0 file so getkf_post can build
+    # the posterior H(xa) for reflectivity from the recomputed refl10cm.
+    if [[ "${wofs_da}" == 'true' && "${GETKF_POST_REFL_FROM_FCST:-FALSE}" == "TRUE" ]]; then
+      reflt0_t0str=$(fcst_timestr 0)
+      reflt0_file=${DATA}/reflt0.${reflt0_t0str}.nc
+      if [[ -s ${reflt0_file} ]]; then
+        ${cpreq} "${reflt0_file}" "${COMOUT}/${com_fcst_sub}/${WGF}${MEMDIR}"
+      else
+        echo "WARNING: reflt0 file not found - ${reflt0_file}"
+      fi
     fi
   fi
   exit 0

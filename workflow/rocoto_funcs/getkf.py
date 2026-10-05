@@ -44,6 +44,21 @@ def getkf(xmlFile, expdir, taskType):
     if analysis_variables != '0':
         dcTaskEnv['ANALYSIS_VARIABLES'] = analysis_variables
 
+    # Optional (WoFS reflectivity DA): compute the posterior H(xa) for refl10cm
+    # from the forward forecast's t=0 refl10cm (recomputed from the analyzed
+    # hydrometeors by init_reflectivity_diagnostic), instead of the LETKF-updated
+    # analysis refl10cm.  Only emitted for getkf_post when enabled, so other
+    # experiments/tasks regenerate byte-identical XML.
+    refl_from_fcst = os.getenv("GETKF_POST_REFL_FROM_FCST", "FALSE").upper() == "TRUE"
+    if refl_from_fcst and taskType.upper() == "POST":
+        dcTaskEnv['GETKF_POST_REFL_FROM_FCST'] = 'TRUE'
+
+    # Optional per-experiment override of the mpasjedi_enkf.x executable.
+    # Only emitted when ENKF_EXEC is set, so other experiments are unchanged.
+    enkf_exec = os.getenv('ENKF_EXEC', '')
+    if enkf_exec:
+        dcTaskEnv['ENKF_EXEC'] = enkf_exec
+
     dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{task_id}".upper()).upper()
     # dependencies
     timedep = ""
@@ -62,6 +77,10 @@ def getkf(xmlFile, expdir, taskType):
         cwpdep = ""
         if os.getenv("DO_CWP", "FALSE").upper() == "TRUE":
             cwpdep = '\n    <taskdep task="ioda_cwp"/>'
+
+        okmesodep = ""
+        if os.getenv("DO_MESONET", "FALSE").upper() == "TRUE":
+            okmesodep = '\n    <taskdep task="ioda_okmeso"/>'
 
         final_recenterdep = ""
         spaces = " " * 4
@@ -89,7 +108,7 @@ def getkf(xmlFile, expdir, taskType):
   <dependency>
   <and>{timedep}
     <taskdep task="prep_ic"/>
-    {iodadep}{cwpdep}{final_recenterdep}
+    {iodadep}{cwpdep}{okmesodep}{final_recenterdep}
   </and>
   </dependency>'''
     elif taskType.upper() == "SOLVER":
@@ -101,10 +120,17 @@ def getkf(xmlFile, expdir, taskType):
   </dependency>'''
     #
     elif taskType.upper() == "POST":
+        # Optionally wait for the forward forecasts so the posterior observer can
+        # read each member's t=0 refl10cm (recomputed from the analysis).  The
+        # fcst metatask dependency tracks all ensemble groups automatically.
+        fcstdep = ""
+        if refl_from_fcst:
+            from rocoto_funcs.smart_ens_groups import smart_ens_groups
+            fcstdep = smart_ens_groups('fcst')["combined_dep_xml"]
         dependencies = f'''
   <dependency>
   <and>{timedep}
-    <taskdep task="getkf_solver"/>
+    <taskdep task="getkf_solver"/>{fcstdep}
   </and>
   </dependency>'''
     #

@@ -78,6 +78,17 @@ if [[ -n "${OBS_CWP_DIR:-}" ]]; then
   done
 fi
 
+# OK Mesonet surface obs (okmeso obs space).  Produced by the ioda_okmeso task
+# into ${COMOUT}/ioda_okmeso/${WGF}; stage it for this cycle.
+if [[ -n "${OKMESO_DIR:-}" ]]; then
+  if ${jedivar}; then
+    okmesopath="${COMOUT}/ioda_okmeso/${WGF}"
+  else # getkf
+    okmesopath="${COMOUT}/ioda_okmeso/${IODA_BUFR_WGF}"
+  fi
+  mappings["ioda_okmeso_obs.nc"]="${okmesopath}/ioda_okmeso_obs.nc"
+fi
+
 # loop through and copy files
 for dst_file in "${!mappings[@]}"; do
   src_file=${mappings[${dst_file}]}

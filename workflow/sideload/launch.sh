@@ -99,6 +99,14 @@ case ${task_id} in
     module load "RDAS/${MACHINE}.${COMPILER}"
     export LD_LIBRARY_PATH=${HOMErrfs}/sorc/RDASApp/build/lib64:${LD_LIBRARY_PATH}
     ;;
+  ioda_okmeso)
+    module purge
+    module use "${HOMErrfs}/sorc/RDASApp/modulefiles"
+    module load "RDAS/${MACHINE}.${COMPILER}"
+    # matplotlib/shapely (via cartopy) are needed by offline_domain_check.py
+    module load py-matplotlib py-cartopy
+    export LD_LIBRARY_PATH=${HOMErrfs}/sorc/RDASApp/build/lib64:${LD_LIBRARY_PATH}
+    ;;
   nonvar_bufrobs|nonvar_reflobs|nonvar_cldana)
     module purge
     module use "${HOMErrfs}/sorc/RRFS_UTILS/modulefiles"

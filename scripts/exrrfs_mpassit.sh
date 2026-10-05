@@ -7,9 +7,10 @@ cpreq=${cpreq:-cpreq}
 prefix=${EXTRN_MDL_SOURCE%_NCO} # remove the trailing '_NCO' if any
 cd "${DATA}"  || exit 1
 #
-#  copy excutable and fix files for this mesh
+#  link the executable (atomic install: symlink avoids ETXTBSY "Text file
+#  busy" when many mpassit member tasks stage the shared exe concurrently)
 #
-${cpreq} "${EXECrrfs}"/mpassit.x .
+ln -sf "${EXECrrfs}/mpassit.x" ./mpassit.x
 
 # Use a physics-suite-specific set of field lists when available, otherwise
 # fall back to the shared defaults (keeps all other WGFs unchanged).
