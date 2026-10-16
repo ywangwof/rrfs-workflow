@@ -177,6 +177,10 @@ def header_entities(xmlFile, expdir):
         vr_dir = os.getenv('VR_DIR', '').strip()
         obs_cwp_dir = os.getenv('OBS_CWP_DIR', '').strip()
         okmeso_dir = os.getenv('OKMESO_DIR', '').strip()
+        # copy_obs.sh stages okmeso obs whenever OKMESO_DIR is set, so blank it
+        # unless DO_MESONET is on.
+        if os.getenv('DO_MESONET', 'FALSE').upper() != 'TRUE':
+            okmeso_dir = ''
         # Per-event domain directory under COM (Approach A): each WoFS case has
         # its own mesh, so create_domain writes here and every downstream task
         # reads the mesh from here instead of the shared ${FIXrrfs}/${MESH_NAME}.

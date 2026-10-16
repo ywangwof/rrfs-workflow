@@ -35,6 +35,10 @@ def mpassit_free(xmlFile, expdir, dcEnsGrpInfo=None):
         'LSM_SCHEME': os.getenv('LSM_SCHEME', 'sf_ruc'),
         'PHYSICS_SUITE': os.getenv('PHYSICS_SUITE', 'PHYSICS_SUITE_not_defined'),
     }
+    # only set for meshes that define them (e.g. wofs_mpas) to keep other XMLs unchanged
+    for key in ('MPASSIT_TRUELAT1', 'MPASSIT_TRUELAT2'):
+        if os.getenv(key):
+            dcTaskEnv[key] = os.getenv(key)
 
     if dcEnsGrpInfo is None:
         free_members = int(os.getenv('FREE_FCST_MEMBERS', os.getenv('ENS_SIZE', '2')))

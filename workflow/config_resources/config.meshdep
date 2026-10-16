@@ -202,6 +202,10 @@ elif [[ ${MESH_NAME} == "wofs_mpas" ]]; then
   export MPASSIT_DX=${MPASSIT_DOMAIN_DX:-$(awk "BEGIN{printf \"%.1f\", ${DOMAIN_DX_KM:-3}*1000}")}
   export MPASSIT_REF_LAT=${MPASSIT_DOMAIN_REF_LAT:-${DOMAIN_CEN_LAT:-38.5}}
   export MPASSIT_REF_LON=${MPASSIT_DOMAIN_REF_LON:-${DOMAIN_CEN_LON:-97.5}}
+  # Lambert standard parallels: match the create_domain projection so the
+  # MPASSIT grid matches the WRF geo_em grid built from the same DOMAIN_* knobs.
+  export MPASSIT_TRUELAT1=${MPASSIT_DOMAIN_TRUELAT1:-${DOMAIN_STD_PAR1:-30.0}}
+  export MPASSIT_TRUELAT2=${MPASSIT_DOMAIN_TRUELAT2:-${DOMAIN_STD_PAR2:-60.0}}
 
   export NONVAR_LARC_NPTS=3
   export NONVAR_METAR_IMPACT=20

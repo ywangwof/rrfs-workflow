@@ -117,6 +117,14 @@ observations:
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: equivalentReflectivityFactor
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -160,6 +168,14 @@ observations:
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: equivalentReflectivityFactor_clear
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -253,6 +269,14 @@ observations:
       get values:
         nnearest: 3
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: CloudWaterPath_Zero
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -305,6 +329,14 @@ observations:
       get values:
         nnearest: 3
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: LiquidWaterPath
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -357,6 +389,14 @@ observations:
       get values:
         nnearest: 3
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: IceWaterPath
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -409,6 +449,14 @@ observations:
       get values:
         nnearest: 3
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: CloudWaterPath_Zero_Night
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -461,6 +509,14 @@ observations:
       get values:
         nnearest: 3
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: LiquidWaterPath_Night
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -513,6 +569,14 @@ observations:
       get values:
         nnearest: 3
       obs filters:
+        - filter: Bounds Check   # S2: reject obs in the MPAS boundary belt (bdyMaskCell>0.1, ~20 km)
+          filter variables:
+            - name: IceWaterPath_Night
+          test variables:
+            - name: GeoVaLs/observable_domain_mask
+          flag all filter variables if any test variable is out of bounds: true
+          minvalue: 0.0
+          maxvalue: 0.1
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
@@ -577,6 +641,18 @@ observations:
       linear obs operator:
         name: Identity
       obs filters:
+        # Online regional domain check
+        - filter: Bounds Check
+          filter variables:
+          - name: airTemperature
+          - name: specificHumidity
+          - name: stationPressure
+          - name: windEastward
+          - name: windNorthward
+          test variables:
+          - name: GeoVaLs/observable_domain_mask
+          minvalue: 0.0
+          maxvalue: 0.5
         - filter: Background Check
           apply at iterations: 0,1
           filter variables:
