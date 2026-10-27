@@ -137,6 +137,16 @@ export OBS_CWP_DIR="/scratch3/NAGAPE/wof/kknopfmeier/CWP"
 # time, it runs anyway and the DA proceeds without CWP obs.
 #export CWP_LOOKBACK_MIN=4
 export CWP_TIMEOUT_SEC=300
+# Optional GOES CWP QC (Y4 setup; leave all unset for the original behavior):
+#   CWP_SATURATION_CHECK=filter: cloud-layer RH > 0.975 check done by a filter on the
+#     H(ensemble mean) run instead of per member; needs the UFO "saturation check" option.
+#   CWP_ECHO_SCREEN_KM: radar-clear = no MRMS echo column within this distance (km);
+#     alone it rejects radar-clear LWP/IWP (needs MRMS_ALL_DIR/MRMS_CLEAR_DIR files).
+#   CWP_ECHO_CLEAR_ERR_INFLATE: with CWP_ECHO_SCREEN_KM, keep radar-clear LWP/IWP and
+#     inflate their obs error by this factor (observer only); alone it is an error.
+export CWP_SATURATION_CHECK=filter
+export CWP_ECHO_SCREEN_KM=15
+export CWP_ECHO_CLEAR_ERR_INFLATE=3
 # Oklahoma Mesonet (OKM) surface obs assimilation.  When DO_MESONET=true the
 # ioda_okmeso task converts the raw Mesonet MDF file for each DA cycle into the
 # okmeso IODA obs (temperature, specific humidity, station pressure, u/v wind)

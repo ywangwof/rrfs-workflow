@@ -59,6 +59,15 @@ def getkf(xmlFile, expdir, taskType):
     if enkf_exec:
         dcTaskEnv['ENKF_EXEC'] = enkf_exec
 
+    # Optional GOES CWP QC in the LETKF yaml (ush/yaml_finalize), emitted only when set:
+    #   CWP_ECHO_SCREEN_KM: radar-clear = MetaData/radarEchoDistance above this (km); the ioda_cwp
+    #                       task writes that metadata when it is set. Rejects radar-clear LWP/IWP,
+    #                       or with CWP_ECHO_CLEAR_ERR_INFLATE inflates their obs error instead
+    #   CWP_SATURATION_CHECK=filter: saturation check as a filter on the H(ensemble mean) run
+    for name in ('CWP_ECHO_SCREEN_KM', 'CWP_ECHO_CLEAR_ERR_INFLATE', 'CWP_SATURATION_CHECK'):
+        if os.getenv(name, ''):
+            dcTaskEnv[name] = os.getenv(name)
+
     dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{task_id}".upper()).upper()
     # dependencies
     timedep = ""

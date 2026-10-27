@@ -53,7 +53,21 @@ fi
 PYIODALIB=$(echo "${HOMErrfs}"/sorc/RDASApp/build/lib/python3.*)
 export PYTHONPATH=${PYIODALIB}:${PYTHONPATH}
 
-"${HOMErrfs}"/ush/GOESCWP2ioda.py -d "${anlys_eventtime}" "${cwpfile}"
+# Optional (CWP_ECHO_DIST=TRUE, set by the workflow when CWP_ECHO_SCREEN_KM is set): write
+# MetaData/radarEchoDistance, the distance (km) to the nearest MRMS echo column, to every CWP
+# file for the radar-clear filters that yaml_finalize adds, using the same pre-staged MRMS IODA
+# files as the getkf observer (ush/copy_obs.sh).
+echo_args=()
+if [[ "${CWP_ECHO_DIST:-FALSE}" == "TRUE" ]]; then
+  mrms_echo="${MRMS_ALL_DIR}/${CDATE:0:8}/ioda_mrms_${CDATE:0:8}_${CDATE:8:4}.nc4"
+  mrms_clear="${MRMS_CLEAR_DIR}/${CDATE:0:8}/ioda_mrms_${CDATE:0:8}_${CDATE:8:4}_clear.nc4"
+  if [[ ! -s "${mrms_echo}" || ! -s "${mrms_clear}" ]]; then
+    echo "FATAL ERROR: CWP_ECHO_DIST=TRUE needs ${mrms_echo} and ${mrms_clear}"
+    err_exit
+  fi
+  echo_args=(--echo-ioda "${mrms_echo}" --clear-ioda "${mrms_clear}" --echo-distance -v)
+fi
+"${HOMErrfs}"/ush/GOESCWP2ioda.py -d "${anlys_eventtime}" "${echo_args[@]}" "${cwpfile}"
 export err=$?
 err_chk
 #

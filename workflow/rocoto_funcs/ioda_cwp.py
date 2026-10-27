@@ -19,6 +19,10 @@ def ioda_cwp(xmlFile, expdir):
         'CWP_LOOKBACK_MIN': f'{CWP_LOOKBACK_MIN}',
     }
 
+    # Optional radar-clear CWP QC (CWP_ECHO_SCREEN_KM, see getkf.py and ush/yaml_finalize):
+    # write MetaData/radarEchoDistance to the CWP files (emitted only when set)
+    if os.getenv("CWP_ECHO_SCREEN_KM", ""):
+        dcTaskEnv['CWP_ECHO_DIST'] = 'TRUE'
     dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{task_id}".upper()).upper()
     # dependencies: wait for the raw GOES CWP file (any minute within the
     # lookback window), or give up after CWP_TIMEOUT_SEC past the cycle time.

@@ -43,6 +43,105 @@ GSIBEC_LON_END = os.getenv("GSIBEC_LON_END", "@GSIBEC_LON_END@")
 GSIBEC_NORTH_POLE_LAT = os.getenv("GSIBEC_NORTH_POLE_LAT", "@GSIBEC_NORTH_POLE_LAT@")
 GSIBEC_NORTH_POLE_LON = os.getenv("GSIBEC_NORTH_POLE_LON", "@GSIBEC_NORTH_POLE_LON@")
 ANALYSIS_VARIABLES = os.getenv("ANALYSIS_VARIABLES", "0")  # 5, 12 or a list of variables
+# GOES CWP QC (GOESCloudWaterPath observers only; unset -> yaml unchanged):
+#   CWP_ECHO_SCREEN_KM: Bounds Check rejecting LWP/IWP whose MetaData/radarEchoDistance (written
+#                       by GOESCWP2ioda.py --echo-distance) exceeds this many km (radar-clear air)
+#   CWP_ECHO_CLEAR_ERR_INFLATE: with CWP_ECHO_SCREEN_KM, keep the radar-clear obs and multiply
+#                       their obs error by this factor instead of rejecting them. The Perform
+#                       Action also tests HofX, so it runs after the Background Check, which
+#                       still uses the original error. Added to the observer yaml only.
+#   CWP_SATURATION_CHECK=filter: the operator no longer sets a saturated member's H(x) to missing;
+#                       a Bounds Check on ObsDiag/cloud_layer_relative_humidity (> 0.975) does the
+#                       check instead. The LETKF observer keeps only the QC of the H(ensemble mean)
+#                       run, so the check is decided on the ensemble-mean state. LWP in a
+#                       below-freezing layer stays exempt, as in the operator. Needs a ufo with the
+#                       `saturation check` operator option (2_ufo_saturation_on_mean.patch).
+CWP_ECHO_SCREEN_KM = os.getenv("CWP_ECHO_SCREEN_KM", "")
+CWP_ECHO_CLEAR_ERR_INFLATE = os.getenv("CWP_ECHO_CLEAR_ERR_INFLATE", "")
+CWP_SATURATION_CHECK = os.getenv("CWP_SATURATION_CHECK", "").lower()
+if CWP_SATURATION_CHECK not in ("", "operator", "filter"):
+    sys.stderr.write(f"FATAL ERROR: CWP_SATURATION_CHECK must be operator or filter: {CWP_SATURATION_CHECK}\n")
+    sys.exit(1)
+if CWP_ECHO_CLEAR_ERR_INFLATE and (not CWP_ECHO_SCREEN_KM or float(CWP_ECHO_CLEAR_ERR_INFLATE) <= 0.0):
+    sys.stderr.write("FATAL ERROR: CWP_ECHO_CLEAR_ERR_INFLATE needs CWP_ECHO_SCREEN_KM and a positive factor\n")
+    sys.exit(1)
+
+
+def cwp_qc_tweak(block):
+    """Insert the CWP_ECHO_SCREEN_KM / CWP_SATURATION_CHECK filters into a GOESCloudWaterPath observer."""
+    stripped = [line.strip() for line in block]
+    if "name: GOESCloudWaterPath" not in stripped:
+        return
+    gtype = next(v.split(":", 1)[1].strip() for v in stripped if v.startswith("goes obs type:"))
+    simvar = next(v.split(":", 1)[1].strip().strip("[]").strip() for v in stripped
+                  if v.startswith("simulated variables:"))
+    layer_tk = "compute layer tk: false" not in stripped
+    filters, last = [], []
+    # Error inflation goes in the observer only: the LETKF saves the H(mean) run's effective error as
+    # ObsError in the jdiag, which the solver uses as is and the post reads back in (inflating there
+    # would double it).
+    if CWP_ECHO_SCREEN_KM and gtype in ("LWP", "IWP") and CWP_ECHO_CLEAR_ERR_INFLATE:
+        if GETKF_TYPE not in ("solver", "post"):
+            last += [
+                f"- filter: Perform Action   # radar-clear air (no MRMS echo column within {CWP_ECHO_SCREEN_KM} km):"
+                f" obs error x {CWP_ECHO_CLEAR_ERR_INFLATE}",
+                "  filter variables:",
+                f"    - name: {simvar}",
+                "  where:",
+                "    - variable:",
+                "        name: MetaData/radarEchoDistance",
+                f"      minvalue: {CWP_ECHO_SCREEN_KM}",
+                "      min_exclusive: true",
+                "    - variable:   # needs H(x): runs after the Background Check",
+                f"        name: HofX/{simvar}",
+                "      value: is_valid",
+                "  action:",
+                "    name: inflate error",
+                f"    inflation factor: {CWP_ECHO_CLEAR_ERR_INFLATE}",
+            ]
+    elif CWP_ECHO_SCREEN_KM and gtype in ("LWP", "IWP"):
+        filters += [
+            f"- filter: Bounds Check   # radar-clear air: no MRMS echo column within {CWP_ECHO_SCREEN_KM} km",
+            "  filter variables:",
+            f"    - name: {simvar}",
+            "  test variables:",
+            "    - name: MetaData/radarEchoDistance",
+            f"  maxvalue: {CWP_ECHO_SCREEN_KM}",
+        ]
+    if CWP_SATURATION_CHECK == "filter":
+        i = stripped.index("name: GOESCloudWaterPath")
+        block.insert(i + 1, f"{hy.strip_indentations(block[i])[1]}saturation check: filter")
+        stripped.insert(i + 1, "saturation check: filter")
+        filters += [
+            "- filter: Bounds Check   # saturation check: cloud-layer mean RH (wrt water) > 0.975",
+            "  filter variables:",
+            f"    - name: {simvar}",
+            "  test variables:",
+            "    - name: ObsDiag/cloud_layer_relative_humidity",
+            "  maxvalue: 0.975",
+            "  treat missing as out of bounds: false",
+        ]
+        if gtype == "LWP" and layer_tk:  # LWP in a below-freezing layer is replaced by CWP
+            filters += [
+                "  where:",
+                "    - variable:",
+                "        name: ObsDiag/cloud_layer_temperature",
+                "      minvalue: 273.0",
+            ]
+    if not (filters or last):
+        return
+    i = stripped.index("obs filters:")
+    indent = hy.strip_indentations(block[i])[0]
+    spaces = " " * (indent + 2)
+    if last:  # end of the obs filters list: before the next key at the indentation of "obs filters:"
+        j = i + 1
+        while j < len(block) and (not block[j].strip() or hy.strip_indentations(block[j])[0] > indent):
+            j += 1
+        while not block[j - 1].strip():
+            j -= 1
+        block[j:j] = [f"{spaces}{line}" for line in last]
+    if filters:
+        block[i + 1:i + 1] = [f"{spaces}{line}" for line in filters]
 
 # determine the temporal grid for Gaussian Thinning
 time_mesh = 3
@@ -234,6 +333,8 @@ for name, observer in dcObs.items():
     tmp = data[observer["pos1"]:observer["pos2"]]  # a shallow copy when slicing
     if ytype == "getkf" and (GETKF_TYPE == "solver" or GETKF_TYPE == "post"):
         yj.getkf_observer_tweak(tmp, GETKF_TYPE)
+    if CWP_ECHO_SCREEN_KM or CWP_SATURATION_CHECK == "filter":
+        cwp_qc_tweak(tmp)
 
     if use_conv_sat_info:
         if observer["is_sat_radiance"]:  # check against SAT_USELIST

@@ -139,6 +139,17 @@ def process_variable(args_tuple):
     if nlocs <= 0:
         return f"Skipped {v_id}: No observations." if args.verbose else None
 
+    if args.echo_distance:
+        # Radar-echo metadata for a QC filter (--echo-distance): distance (km) from each obs to
+        # the nearest MRMS echo column, capped at --echo-distance-max-km; 0 outside the lattice
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import cwp_echo_mask
+        dist = cwp_echo_mask.echo_distance(obs_data[('latitude', 'MetaData')],
+                                           obs_data[('longitude', 'MetaData')],
+                                           args.echo_ioda, args.clear_ioda or [],
+                                           args.echo_distance_max_km)
+        obs_data[('radarEchoDistance', 'MetaData')] = dist.astype(np.float32)
+
     # Setup IODA structure
     dim_dict = {'Location': nlocs}
     var_attrs = DefaultOrderedDict(lambda: DefaultOrderedDict(dict))
@@ -146,6 +157,10 @@ def process_variable(args_tuple):
 
     date_str = basetime.strftime("%Y-%m-%dT%H:%M:%SZ")
     var_attrs['dateTime', 'MetaData']['units'] = f'seconds since {date_str}'
+    if ('radarEchoDistance', 'MetaData') in obs_data:
+        var_attrs['radarEchoDistance', 'MetaData']['units'] = 'km'
+        var_attrs['radarEchoDistance', 'MetaData']['long_name'] = (
+            f'distance to the nearest MRMS echo column, capped at {args.echo_distance_max_km:g} km')
 
     for suffix in [config['oval_name'], config['oerr_name']]:
         var_attrs[out_names[0], suffix]['units'] = 'kg m-2'
@@ -182,8 +197,19 @@ def parse_args():
     optional.add_argument('-t', '--thin', type=float, default=0.0, help="Thinning (0-1)")
     optional.add_argument('--threads', type=int, default=1, help="Threads per process")
     optional.add_argument('-v', '--verbose', action='store_true', help="Enable verbose output")
+    optional.add_argument('--echo-ioda', nargs='+', default=None,
+                          help="MRMS reflectivity IODA file(s) of the same cycle (for --echo-distance)")
+    optional.add_argument('--clear-ioda', nargs='+', default=None,
+                          help="MRMS clear-air IODA file(s) of the same cycle")
+    optional.add_argument('--echo-distance', action='store_true',
+                          help="With --echo-ioda: write MetaData/radarEchoDistance (km) for all obs")
+    optional.add_argument('--echo-distance-max-km', type=float, default=60.0,
+                          help="Cap of MetaData/radarEchoDistance (km)")
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.echo_distance and not args.echo_ioda:
+        parser.error("--echo-distance needs --echo-ioda")
+    return args
 
 ################################################################################
 def main():
