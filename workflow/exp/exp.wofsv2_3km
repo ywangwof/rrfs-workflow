@@ -39,6 +39,9 @@ export GPMETIS="/scratch3/NAGAPE/wof/ywang/tools/bin/gpmetis"
 #
 # Invariant stage: build <mesh>.invariant.nc_L<nlevel>_<prefix> from an external
 # GRIB2 record (met interpolation) for the JEDI/fcst/MPASSIT tasks.
+
+export MPASSIT_DOMAIN_NX=300  
+export MPASSIT_DOMAIN_NY=300
 export DO_DOMAIN_INVARIANT=true
 export DOMAIN_INVARIANT_PREFIX=RRFSv2X
 export DOMAIN_INVARIANT_GRIB2="/scratch3/BMC/nrtrr/RRFSv2X_retro/com/rrfs/v2.1.4/rrfs.20260518/14/upp/enkf/mem001/rrfs.t14z.natlev.f001.conus.grib2"
@@ -46,12 +49,9 @@ export DOMAIN_INVARIANT_VTABLE=RRFSv2X   # parm/create_domain/Vtable.RRFSv2X
 #
 export DO_ENSEMBLE=true
 #export DO_ENSMEAN_POST=true
-export IC_ONLY=false  # interpolate GEFS/GDAS to the target mesh to provide ensemble BEC
 export DO_DETERMINISTIC=false
 export ENS_SIZE=30
 export ZETA_LEVELS="L60.txt"
-#
-export USE_MERRA2=false  # false: default GOCART aerosol climatology; true: MERRA2 aerosol climatology
 #
 export DO_IODA=true
 export DO_JEDI=true
@@ -65,28 +65,18 @@ export DA_WINDOW_HALF_MIN=30
 # Microphysics scheme for MP-dependent DA state/increment variables (and CWP hail
 # operator): mp_nssl2m | mp_tempo | mp_thompson (see ush/yaml_finalize).
 export MP_SCHEME="mp_tempo"
-export DO_NONVAR_CLOUD_ANA=false
 export COLDSTART_CYCS_DO_DA=false
-export DO_RECENTER=false
 export DO_RADAR_REF=true
 export SAVE_GETKF_ANL=true
-export DO_CLEAN=false
-export RADARREFL_TIMELEVEL="00"  # 00 15 30 45 min
-export SAT_USELIST=""  # check config.base on how to set up this variable
+export GETKF_POST_REFL_FROM_FCST=true
+export DO_CLEAN=true
 
+export FCST_DT=15
 export DO_CYC=true
-export CYC_INTERVAL=6         # inert in WoFS mode (cycling uses DA_INTERVAL); kept for non-WoFS diff-comparability
 for i in {0..23};    do arr[$i]="03"; done # 3hr fcst
 for i in {0..23..6}; do arr[$i]="06"; done # 6hr fcst every 6hrs
-# FCST_LEN_HRS_CYCLES: inert in WoFS mode. DA-cycle length comes from
-# DA_INTERVAL (the DA first-guess spans one interval) and free-forecast length
-# from FREE_FCST_LEN_HRS; the smart_post_groups 24-entry check is skipped
-# (DO_DA_POST=FALSE). Kept defined for non-WoFS diff-comparability.
-export FCST_LEN_HRS_CYCLES="${arr[*]}"
 
 export HISTORY_INTERVAL=1     # inert in WoFS mode (fcst uses HISTORY_INTERVAL_MIN / FREE_OUTPUT_INTERVAL_MIN)
-export MPASOUT_TIMELEVELS="0 6"  # inert in WoFS mode (fcst forces MPASOUT_TIMELEVELS="" for DA and free cycles)
-export POST_GROUP_TOT_NUM=2 # num of groups, the final group absorbs leftovers, the first group contains the extra f000h file
 
 export IC_OFFSET=1        # sole driver of the external IC: rocoto's cyclestr offset
                          # rolls rrfs.@Y@m@d/@H back IC_OFFSET hours (date-correct across
@@ -105,17 +95,6 @@ export LBC_UNGRIB_GROUP_TOTAL_NUM=2
 export LBC_GROUP_TOTAL_NUM=2
 
 # --- Legacy (hourly retro) knobs -----------------------------------------
-# In WoFS windowed mode (DO_WOFS=true) these are bypassed:
-#   * RETRO_PERIOD   : only read by the legacy retro cycledef branch, which is
-#                      skipped by the DO_WOFS early-return in smart_cycledefs.
-#   * COLDSTART_CYCS : overridden by DA_STARTTIME in prep_ic.py and fcst.py.
-# Kept only so this exp stays diff-comparable with the non-WoFS experiments.
-export RETRO_PERIOD="2024052700-2024052800"
-export COLDSTART_CYCS="00"   # cycles to cold start from external models
-# LBC_CYCS is likewise bypassed for cycledefs, but config.base still derives
-# PREP_LBC_LOOK_BACK_HRS from it. We set that explicitly below, which makes
-# LBC_CYCS fully inert in WoFS mode.
-export LBC_CYCS="00 06 12 18"
 export PREP_LBC_LOOK_BACK_HRS=5   # hours prep_lbc searches back for LBC source files
 
 # --- WoFS windowed sub-hourly cycling (Phase 1) ---------------------------
@@ -134,7 +113,7 @@ export DA_INTERVAL=15             # minutes between DA/prod cycles; also sets th
 # Sub-hourly prepbufr obs for the DA/prod cycles.  In WoFS windowed mode the
 # prepbufr file for a cycle valid YYYYmmddHHMM is
 #   ${PREPBUFR_DIR}/YYYYmmdd/YYYYmmddHH.rtma_ru.tHHMMz.prepbufr.tm00
-export PREPBUFR_DIR="/scratch3/NAGAPE/wof/kknopfmeier/PB"
+export PREPBUFR_DIR="/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/Prepbufr"
 # Pre-staged IODA MRMS reflectivity obs for the DA/prod cycles.  In WoFS
 # windowed mode the ioda_mrms_refl task is NOT run; instead the DA reads the
 # pre-generated file for a cycle valid YYYYmmddHHMM from
@@ -146,7 +125,7 @@ export MRMS_ALL_DIR="/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/MRMS_ALL"
 export MRMS_CLEAR_DIR="/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/MRMS_ALL"
 # Pre-staged IODA radar radial velocity (rw obs space), valid YYYYmmddHHMM, from
 #   ${VR_DIR}/YYYYmmdd/ioda_VR_YYYYmmdd_HHMM.nc4
-export VR_DIR="/scratch3/NAGAPE/wof/kknopfmeier/VR"
+export VR_DIR="/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/VR"
 # GOES cloud-water-path (CWP) assimilation.  When DO_CWP=true the ioda_cwp task
 # converts the raw GOES CWP netCDF for each DA cycle into the cwp/lwp/iwp (and
 # _night) IODA obs consumed by the getkf DA.  The raw file valid YYYYmmddHHMM is
@@ -158,6 +137,16 @@ export OBS_CWP_DIR="/scratch3/NAGAPE/wof/kknopfmeier/CWP"
 # time, it runs anyway and the DA proceeds without CWP obs.
 #export CWP_LOOKBACK_MIN=4
 export CWP_TIMEOUT_SEC=300
+# Oklahoma Mesonet (OKM) surface obs assimilation.  When DO_MESONET=true the
+# ioda_okmeso task converts the raw Mesonet MDF file for each DA cycle into the
+# okmeso IODA obs (temperature, specific humidity, station pressure, u/v wind)
+# consumed by the getkf DA.  The raw file valid YYYYmmddHHMM is
+#   ${OKMESO_DIR}/YYYY/MM/DD/mesonet.realtime.YYYYmmddHHMM.mdf
+export DO_MESONET=false
+export OKMESO_DIR="/scratch4/NAGAPE/wof/ywang/MPAS-WoFS/run_dirs/Mesonet"
+# ioda_okmeso waits for the MDF file (lookback/timeout as for CWP above).
+#export OKMESO_LOOKBACK_MIN=4
+export OKMESO_TIMEOUT_SEC=300
 export FCST_STARTTIME="1700"      # HHMM, first free-forecast launch
 export FCST_ENDTIME="0300"        # HHMM, last free-forecast launch (next day if <= start)
 export FREE_FCST_INTERVAL_MIN=60  # minutes between free-forecast launches
@@ -187,18 +176,15 @@ export NODES_IC="<nodes>40:ppn=40</nodes>"
 export NODES_LBC="<nodes>40:ppn=40</nodes>"
 export NODES_FCST="<nodes>40:ppn=40</nodes>"
 export NODES_MPASSIT="<nodes>4:ppn=20</nodes>"
-export NODES_UPP="<nodes>4:ppn=20</nodes>"
 export NODES_GETKF="<nodes>80:ppn=10</nodes>"
-export NODES_RECENTER="<nodes>2:ppn=16</nodes>"
-export NODES_IODA_MRMS_REFL="<nodes>1:ppn=40</nodes>"
 export NODES_IODA_CWP="<nodes>1:ppn=6</nodes>"
+export NODES_IODA_OKMESO="<nodes>1:ppn=1</nodes>"
 #
 export WALLTIME_FCST="2:00:00"
 export WALLTIME_MPASSIT="2:00:00"
-export WALLTIME_UPP="2:00:00"
 export WALLTIME_GETKF="00:30:00"
 #
-export KEEPDATA=YES
+export KEEPDATA=NO
 export TASKTHROTTLE=60
 #
 # local.setup: setup some local options specific to a platform or an experiment
@@ -219,19 +205,14 @@ export IC_EXTRN_MDL_NAME="RRFSv2X"
 # @H / t@Hz are the external IC cycle hour = cold-start hour - IC_OFFSET (rocoto cyclestr
 # applies the -IC_OFFSET:00:00 offset); f^HHH^ is the lead, filled with IC_OFFSET at runtime.
 export IC_EXTRN_MDL_FILENAME_PATTERN="rrfs.@Y@m@d/@H/upp/enkf/mem#ens_index#/rrfs.t@Hz.natlev.f^HHH^.conus.grib2"
-export IC_EXTRN_MDL_FILENAME_PATTERN_B=""
 export LBC_EXTRN_MDL_NAME=${IC_EXTRN_MDL_NAME}
 # @H / t@Hz are the external LBC cycle hour = cold-start hour - LBC_OFFSET (rocoto cyclestr
 # applies the -LBC_OFFSET:00:00 offset); f^HHH^ is the lead, looped LBC_OFFSET..+LBC_LENGTH at runtime.
 export LBC_EXTRN_MDL_FILENAME_PATTERN="rrfs.@Y@m@d/@H/upp/enkf/mem#lbc_mem#/rrfs.t@Hz.natlev.f^HHH^.conus.grib2"
-export LBC_EXTRN_MDL_FILENAME_PATTERN_B=""
 case ${MACHINE} in
   "hera")
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
     export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
-    export OBSPATH="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/obs_rap"
-    export OBSPATH_NSSLMOSIAC="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/reflectivity"
-    export OBSPATH_AIRNOW="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/airnow"
     export ACCOUNT="wrfruc"
     export QUEUE="batch"
     export PARTITION="hera"
@@ -239,9 +220,6 @@ case ${MACHINE} in
   "ursa")
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
     export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
-    export OBSPATH="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/obs_rap"
-    export OBSPATH_NSSLMOSIAC="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/reflectivity"
-    export OBSPATH_AIRNOW="/scratch4/BMC/rtrr/RRFS2_RETRO_DATA/May2024/airnow"
     export ACCOUNT="wof"
     export QUEUE="batch"
     export PARTITION="u1-compute"
@@ -260,9 +238,6 @@ case ${MACHINE} in
   "orion"|"hercules")
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
     export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
-    export OBSPATH="/work2/noaa/wrfruc/RRFS2_RETRO_DATA/May2024/obs_rap"
-    export OBSPATH_NSSLMOSIAC="/work2/noaa/wrfruc/RRFS2_RETRO_DATA/May2024/reflectivity"
-    export OBSPATH_AIRNOW="/work2/noaa/wrfruc/RRFS2_RETRO_DATA/May2024/airnow"
     export ACCOUNT="wrfruc"
     export QUEUE="batch"
     export PARTITION=${MACHINE}
@@ -280,9 +255,6 @@ case ${MACHINE} in
   "gaeac6")
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
     export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
-    export OBSPATH="/gpfs/f6/bil-fire10-oar/world-shared/RRFS2_RETRO_DATA/May2024/obs_rap"
-    export OBSPATH_NSSLMOSIAC="/gpfs/f6/bil-fire10-oar/world-shared/RRFS2_RETRO_DATA/May2024/reflectivity"
-    export OBSPATH_AIRNOW="/gpfs/f6/bil-fire10-oar/world-shared/RRFS2_RETRO_DATA/May2024/airnow"
     export ACCOUNT="bil-fire10-oar"
     export QUEUE="normal"
     export PARTITION="batch"
@@ -298,9 +270,6 @@ case ${MACHINE} in
   "wcoss2")
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
     export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
-    export OBSPATH="/lfs/h2/emc/lam/noscrub/RRFS2_RETRO_DATA/May2024/obs_rap"
-    export OBSPATH_NSSLMOSAIC="/lfs/h2/emc/lam/noscrub/RRFS2_RETRO_DATA/May2024/reflectivity"
-    export OBSPATH_AIRNOW="/lfs/h2/emc/lam/noscrub/RRFS2_RETRO_DATA/May2024/airnow"
     export ACCOUNT="RRFS-DEV"
     export QUEUE="dev"
     export PARTITION=""

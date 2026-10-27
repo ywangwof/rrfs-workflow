@@ -56,8 +56,15 @@ class GOESConverter:
         # Extract global attributes
         global_attrs = {}
         attrib_map = {'satellite': 'platformCommonName', 'grid_spacing': 'gridSpacing_km'}
+        # Some newer CWP files omit grid_spacing; fall back to the 0.05 used by earlier files
+        attrib_defaults = {'grid_spacing': 0.05}
         for src, dest in attrib_map.items():
-            global_attrs[dest] = ncd.getncattr(src)
+            if src in ncd.ncattrs():
+                global_attrs[dest] = ncd.getncattr(src)
+            elif src in attrib_defaults:
+                global_attrs[dest] = attrib_defaults[src]
+            else:
+                global_attrs[dest] = ncd.getncattr(src)
 
         # Apply phase masking
         phase = ncd.variables['phase'][:]

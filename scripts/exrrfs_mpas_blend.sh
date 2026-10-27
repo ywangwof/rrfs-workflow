@@ -13,7 +13,7 @@ small_scale_file=""
 timestr=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%Y-%m-%d_%H.%M.%S)
 
 for hr in ${BLENDING_CYCS:-"99"}; do
-  shr=$(printf '%02d' $((10#$hr)) )
+  shr=$(printf "%0${#cyc}d" $((10#$hr)) )
   if [[ "${cyc}" == "${shr}" ]]; then
     # look back ${NUM} cycles to find mpasout files as small scale file
     NUM=3

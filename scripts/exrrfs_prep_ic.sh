@@ -12,7 +12,7 @@ spinup_mode=${SPINUP_MODE:-0}
 #
 START_TYPE="warm"
 for hr in ${COLDSTART_CYCS:-"99"}; do
-  chr=$(printf '%02d' $((10#$hr)) )
+  chr=$(printf "%0${#cyc}d" $((10#$hr)) )
   if [[ "${cyc}" == "${chr}" ]]; then
     START_TYPE="cold"
     break
@@ -22,7 +22,7 @@ if (( spinup_mode == -1 )); then
 # always warm start for prod cycles parallel to spinup cycles
   START_TYPE="warm"
   for hr in ${PRODSWITCH_CYCS:-"99"}; do
-    chr=$(printf '%02d' $((10#$hr)) )
+    chr=$(printf "%0${#cyc}d" $((10#$hr)) )
     if [[ "${cyc}" == "${chr}" ]]; then
       prod_switch=yes
       break
@@ -122,7 +122,7 @@ for index in "${mem_list[@]}"; do # loop through all the members
   if [[ "${DO_BLENDING^^}" == "FALSE" ]]; then
     if [[ "${DO_SFC_UPDATE}" == "TRUE" ]] && (( spinup_mode != -1 )); then
       for hr in ${COLDSTART_CYCS:-"99"}; do
-        shr=$(printf '%02d' $((10#$hr)) )
+        shr=$(printf "%0${#cyc}d" $((10#$hr)) )
         if [[ "${cyc}" == "${shr}" ]]; then
           source_file=""
           # look back ${NUM} cycles to find mpasout files for surface cycling
@@ -219,7 +219,7 @@ else
 # update SST
 if (( "${ENS_SIZE:-0}" < 2 )); then
   for hr in ${SST_UPDATE_CYCS:-"99"}; do
-     chr=$(printf '%02d' $((10#$hr)) )
+     chr=$(printf "%0${#cyc}d" $((10#$hr)) )
      if [[ "${cyc}" == "${chr}" ]]; then
        echo "update SST at cycle ${cyc}"
        ln -s "${FIXrrfs}/sst/RTG_SST_landmask.dat" .
