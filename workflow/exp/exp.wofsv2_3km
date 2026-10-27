@@ -147,6 +147,10 @@ export CWP_TIMEOUT_SEC=300
 export CWP_SATURATION_CHECK=filter
 export CWP_ECHO_SCREEN_KM=15
 export CWP_ECHO_CLEAR_ERR_INFLATE=3
+# After the getkf solver, restore each member's own ni/nifa/nwfa from its background and
+# rebuild volg from the analysis qg with the member's background graupel density
+# (ush/apply_volg_prior_rho.py; interpreter overridable with VOLG_PRIOR_RHO_PY).
+export VOLG_PRIOR_RHO=true
 # Oklahoma Mesonet (OKM) surface obs assimilation.  When DO_MESONET=true the
 # ioda_okmeso task converts the raw Mesonet MDF file for each DA cycle into the
 # okmeso IODA obs (temperature, specific humidity, station pressure, u/v wind)

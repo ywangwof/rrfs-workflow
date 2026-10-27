@@ -169,6 +169,27 @@ if [[ ${START_TYPE} == "warm" ]] || [[ ${START_TYPE} == "cold" && ${COLDSTART_CY
     mv "${DATA}"/data/ens/mem000.nc "${UMBRELLA_GETKF_DATA}"/post_mean.nc
   fi
 
+  # TEMPO volg/ni/nifa/nwfa are not LETKF increment variables. The shared MPAS
+  # pool otherwise writes the last member's scalars into every analysis file.
+  # Run only after a successful solver, before the forecast reads prep_ic.
+  if [[ "${GETKF_TYPE}" == "solver" && "${VOLG_PRIOR_RHO:-FALSE}" == "TRUE" ]]; then
+    prev=$(date -d "${CDATE:0:8} ${CDATE:8:2}:${CDATE:10:2} ${DA_INTERVAL:-15} minutes ago" +%Y%m%d%H%M)
+    prior_root="${COMINrrfs}/${RUN}.${prev:0:8}/${prev:8:4}/fcst/${WGF}"
+    volg_log="${COMOUT}/getkf_${GETKF_TYPE}/${WGF}/volg_prior_rho.log"
+    volg_py="${VOLG_PRIOR_RHO_PY:-/scratch3/NAGAPE/wof/ywang/conda/wofs_post/bin/python}"
+    # The GETKF modules put a different NumPy on PYTHONPATH. Drop it so this
+    # interpreter uses its own site-packages.
+    env -u PYTHONPATH -u PYTHONHOME \
+      OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+      "${volg_py}" -u "${USHrrfs}/apply_volg_prior_rho.py" \
+      --ana-dir "${UMBRELLA_PREP_IC_DATA}" \
+      --prior-root "${prior_root}" \
+      --prior-name "mpasout.${timestr}.nc" \
+      --nmem "${ENS_SIZE}" > "${volg_log}" 2>&1
+    export err=$?
+    err_chk
+  fi
+
   # Save analysis files if requested
   if [[ "${GETKF_TYPE}" == "post" && "${SAVE_GETKF_ANL^^}" == "TRUE" ]]; then
     for mem in $(seq -w 001 "${ENS_SIZE}"); do

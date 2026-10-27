@@ -43,6 +43,11 @@ def getkf(xmlFile, expdir, taskType):
         task_id = "getkf_post"
     if analysis_variables != '0':
         dcTaskEnv['ANALYSIS_VARIABLES'] = analysis_variables
+    # After the solver, rebuild volg from each member's prior density and copy
+    # ni/nifa/nwfa back (ush/apply_volg_prior_rho.py). Emitted only when
+    # requested, so other experiments regenerate XML without this variable.
+    if os.getenv('VOLG_PRIOR_RHO', 'FALSE').upper() == 'TRUE' and taskType.upper() == 'SOLVER':
+        dcTaskEnv['VOLG_PRIOR_RHO'] = 'TRUE'
 
     # Optional (WoFS reflectivity DA): compute the posterior H(xa) for refl10cm
     # from the forward forecast's t=0 refl10cm (recomputed from the analyzed
