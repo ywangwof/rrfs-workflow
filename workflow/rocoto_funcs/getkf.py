@@ -58,6 +58,15 @@ def getkf(xmlFile, expdir, taskType):
     if refl_from_fcst and taskType.upper() == "POST":
         dcTaskEnv['GETKF_POST_REFL_FROM_FCST'] = 'TRUE'
 
+    # Optional (WoFS surface obs): compute the posterior H(xa) for surface obs from
+    # the forward forecast's first-step t2m/q2/u10/v10 instead of the background
+    # values left in the analysis file.  Only emitted for getkf_post when enabled,
+    # so other experiments/tasks regenerate byte-identical XML.
+    sfc_from_fcst = os.getenv("GETKF_POST_SFC_FROM_FCST", "FALSE").upper() == "TRUE"
+    if sfc_from_fcst and taskType.upper() == "POST":
+        dcTaskEnv['GETKF_POST_SFC_FROM_FCST'] = 'TRUE'
+        dcTaskEnv['FCST_DT'] = os.getenv('FCST_DT', 'FCST_DT_not_defined')
+
     # Optional per-experiment override of the mpasjedi_enkf.x executable.
     # Only emitted when ENKF_EXEC is set, so other experiments are unchanged.
     enkf_exec = os.getenv('ENKF_EXEC', '')
@@ -135,10 +144,11 @@ def getkf(xmlFile, expdir, taskType):
     #
     elif taskType.upper() == "POST":
         # Optionally wait for the forward forecasts so the posterior observer can
-        # read each member's t=0 refl10cm (recomputed from the analysis).  The
-        # fcst metatask dependency tracks all ensemble groups automatically.
+        # read each member's t=0 refl10cm (recomputed from the analysis) and
+        # first-step surface fields.  The fcst metatask dependency tracks all
+        # ensemble groups automatically.
         fcstdep = ""
-        if refl_from_fcst:
+        if refl_from_fcst or sfc_from_fcst:
             from rocoto_funcs.smart_ens_groups import smart_ens_groups
             fcstdep = smart_ens_groups('fcst')["combined_dep_xml"]
         dependencies = f'''

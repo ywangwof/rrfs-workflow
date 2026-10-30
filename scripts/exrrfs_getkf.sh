@@ -80,6 +80,24 @@ if [[ "${GETKF_TYPE}" == "post" && "${GETKF_POST_REFL_FROM_FCST:-FALSE}" == "TRU
     fi
   done
 fi
+# WoFS surface obs: for the posterior observer, overlay t2m/q2/u10/v10 from the
+# forward forecast's first step (the analysis file still holds the background
+# values).  Same non-mutating rule as above: only a local copy is changed.
+if [[ "${GETKF_TYPE}" == "post" && "${GETKF_POST_SFC_FROM_FCST:-FALSE}" == "TRUE" ]]; then
+  sfct1_str=$(date -d "${CDATE:0:8} ${CDATE:8:2}:${amin} ${FCST_DT} seconds" +%Y-%m-%d_%H.%M.%S)
+  for i in $(seq -w 001 "${ENS_SIZE}"); do
+    sfct1_file="${COMOUT}/fcst/${WGF}/mem${i}/sfct1.${sfct1_str}.nc"
+    if [[ -s "${sfct1_file}" ]]; then
+      if [[ -L "ens/mem${i}.nc" ]]; then
+        cp -L "ens/mem${i}.nc" "ens/mem${i}.nc.tmp"
+        mv -f "ens/mem${i}.nc.tmp" "ens/mem${i}.nc"
+      fi
+      ncks -A --no_tmp_fl -v t2m,q2,u10,v10 "${sfct1_file}" "ens/mem${i}.nc"
+    else
+      echo "WARNING: sfct1 not found, keeping background surface fields for mem${i}: ${sfct1_file}"
+    fi
+  done
+fi
 #
 # enter the run directory again
 #

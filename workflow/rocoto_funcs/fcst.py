@@ -49,6 +49,11 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
     # Gated so other experiments regenerate byte-identical XML.
     if os.getenv('GETKF_POST_REFL_FROM_FCST', 'FALSE').upper() == 'TRUE':
         dcTaskEnv['GETKF_POST_REFL_FROM_FCST'] = 'TRUE'
+    # WoFS surface obs: when enabled, the forward DA forecast also writes a small
+    # sfct1 file (t2m/q2/u10/v10 one model step after t=0) for getkf_post's H(xa).
+    # Gated so other experiments regenerate byte-identical XML.
+    if os.getenv('GETKF_POST_SFC_FROM_FCST', 'FALSE').upper() == 'TRUE':
+        dcTaskEnv['GETKF_POST_SFC_FROM_FCST'] = 'TRUE'
     if os.getenv('FCST_GFL_SUB3D', '') != '':
         dcTaskEnv['FCST_GFL_SUB3D'] = os.getenv('FCST_GFL_SUB3D')
     if os.getenv('MPASOUT_SAVE2COM_HRS', '') != '':

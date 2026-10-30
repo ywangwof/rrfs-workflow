@@ -176,6 +176,16 @@ if [[ "${wofs_da}" == 'true' && "${GETKF_POST_REFL_FROM_FCST:-FALSE}" == "TRUE" 
   sed -i 's#</streams>#<stream name="reflt0"\n        type="output"\n        output_interval="initial_only"\n        filename_template="reflt0.$Y-$M-$D_$h.$m.$s.nc"\n        io_type="pnetcdf,cdf5"\n        clobber_mode="replace_files">\n    <var name="refl10cm"/>\n</stream>\n\n</streams>#' streams.atmosphere
 fi
 #
+# WoFS surface obs: write t2m/q2/u10/v10 once, one model step after t=0, for
+# getkf_post's H(xa).  MPAS computes these only in the first physics call, so
+# there is no t=0 version like reflt0.  Use the range form: a plain "15s" is held
+# as 15.000001 s in single precision, misses step 1 and writes nothing, silently.
+# Gated and WoFS-DA only, so other experiments produce a byte-identical
+# streams.atmosphere.
+if [[ "${wofs_da}" == 'true' && "${GETKF_POST_SFC_FROM_FCST:-FALSE}" == "TRUE" ]]; then
+  sed -i 's#</streams>#<stream name="sfct1"\n        type="output"\n        output_timelevels="'"$((dt*2/3))s-$((dt*4/3))s-${dt}s"'"\n        filename_template="sfct1.$Y-$M-$D_$h.$m.$s.nc"\n        io_type="pnetcdf,cdf5"\n        clobber_mode="replace_files">\n    <var name="t2m"/>\n    <var name="q2"/>\n    <var name="u10"/>\n    <var name="v10"/>\n</stream>\n\n</streams>#' streams.atmosphere
+fi
+#
 # chemistry related processing
 if [[ "${DO_CHEMISTRY^^}" == "TRUE" ]]; then
   source "${USHrrfs}"/chem_fcst.sh
@@ -290,6 +300,16 @@ else
         ${cpreq} "${reflt0_file}" "${COMOUT}/${com_fcst_sub}/${WGF}${MEMDIR}"
       else
         echo "WARNING: reflt0 file not found - ${reflt0_file}"
+      fi
+    fi
+    # WoFS surface obs: stage the first-step surface fields for getkf_post.
+    if [[ "${wofs_da}" == 'true' && "${GETKF_POST_SFC_FROM_FCST:-FALSE}" == "TRUE" ]]; then
+      sfct1_str=$(date -d "${cdate_ymd} ${cdate_hh}:${cdate_mm} ${dt} seconds" +%Y-%m-%d_%H.%M.%S)
+      sfct1_file=${DATA}/sfct1.${sfct1_str}.nc
+      if [[ -s ${sfct1_file} ]]; then
+        ${cpreq} "${sfct1_file}" "${COMOUT}/${com_fcst_sub}/${WGF}${MEMDIR}"
+      else
+        echo "WARNING: sfct1 file not found - ${sfct1_file}"
       fi
     fi
   fi
