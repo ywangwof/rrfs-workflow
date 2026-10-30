@@ -40,8 +40,8 @@ export GPMETIS="/scratch3/NAGAPE/wof/ywang/tools/bin/gpmetis"
 # Invariant stage: build <mesh>.invariant.nc_L<nlevel>_<prefix> from an external
 # GRIB2 record (met interpolation) for the JEDI/fcst/MPASSIT tasks.
 
-export MPASSIT_DOMAIN_NX=300  
-export MPASSIT_DOMAIN_NY=300
+export MPASSIT_DOMAIN_NX=301  
+export MPASSIT_DOMAIN_NY=301
 export DO_DOMAIN_INVARIANT=true
 export DOMAIN_INVARIANT_PREFIX=RRFSv2X
 export DOMAIN_INVARIANT_GRIB2="/scratch3/BMC/nrtrr/RRFSv2X_retro/com/rrfs/v2.1.4/rrfs.20260518/14/upp/enkf/mem001/rrfs.t14z.natlev.f001.conus.grib2"
@@ -88,8 +88,10 @@ export LBC_OFFSET=3       # sole driver of the external LBC cycle: rocoto's cycl
                          # midnight, like `date -d "@Y@m@d@H -LBC_OFFSET hour"`), and the ungrib
                          # fhr loop starts at f%03d(LBC_OFFSET).  So at the 1500 cold start
                          # LBC_OFFSET=3 -> t12z, first boundary f003 valid at 1500.
-export LBC_LENGTH=18      # hourly boundaries valid 1500 .. 0900(+1d): covers the
-                         # DA window (1500->0300) and free forecasts (->0900)
+export LBC_LENGTH=18      # hours of boundaries from DA_STARTTIME (1500 .. 0900(+1d) here).
+                         # Minimum only: setup_rocoto.py raises it to cover
+                         # max(DA_ENDTIME+DA_INTERVAL, FCST_ENDTIME+FREE_FCST_LEN_HRS).
+                         # External LBC files must exist through f(LBC_OFFSET+LBC_LENGTH).
 export LBC_INTERVAL=1     # hourly boundary files; MPAS interpolates between them
 export LBC_UNGRIB_GROUP_TOTAL_NUM=2
 export LBC_GROUP_TOTAL_NUM=2
@@ -189,14 +191,16 @@ export DO_FREE_POST=true           # run mpassit on the free forecasts (Phase 4)
 export NODES_IC="<nodes>40:ppn=40</nodes>"
 export NODES_LBC="<nodes>40:ppn=40</nodes>"
 export NODES_FCST="<nodes>40:ppn=40</nodes>"
-export NODES_MPASSIT="<nodes>4:ppn=20</nodes>"
-export NODES_GETKF="<nodes>80:ppn=10</nodes>"
+export NODES_MPASSIT="<nodes>1:ppn=20</nodes>"
+export NODES_GETKF="<nodes>2:ppn=80</nodes>"
 export NODES_IODA_CWP="<nodes>1:ppn=6</nodes>"
 export NODES_IODA_OKMESO="<nodes>1:ppn=1</nodes>"
 #
-export WALLTIME_FCST="2:00:00"
-export WALLTIME_MPASSIT="2:00:00"
+export WALLTIME_FCST="0:30:00"
+export WALLTIME_MPASSIT="0:30:00"
 export WALLTIME_GETKF="00:30:00"
+export WALLTIME_CREATE_DOMAIN="00:30:00"
+export WALLTIME_SAVE_FOR_NEXT="00:30:00"
 #
 export KEEPDATA=NO
 export TASKTHROTTLE=60
@@ -235,7 +239,10 @@ case ${MACHINE} in
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
     export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
     export ACCOUNT="wof"
-    export QUEUE="batch"
+    #export QUEUE="batch"
+    export QUEUE="debug"
+    export WALLTIME="00:30:00"
+
     export PARTITION="u1-compute"
     export NODES_CREATE_DOMAIN="<nodes>1:ppn=96</nodes>"
     export NODES_IC="<nodes>2:ppn=48</nodes>"
@@ -244,8 +251,6 @@ case ${MACHINE} in
     # (matches graph.info.part.96) across 2 exclusive nodes.
     export NODES_FCST="<nodes>2:ppn=48</nodes>"
     export NODES_MPASSIT="<nodes>2:ppn=48</nodes>"
-    export NODES_UPP="<nodes>2:ppn=48</nodes>"
-    export NODES_RECENTER="<nodes>1:ppn=32</nodes>"
     export NODES_GETKF="<nodes>2:ppn=48</nodes>"
     # WoFS getkf: 96 MPI ranks (matches graph.info.part.96) across 2 exclusive nodes.
     ;;
