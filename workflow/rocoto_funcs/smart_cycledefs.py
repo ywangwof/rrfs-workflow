@@ -23,6 +23,31 @@ def _window(event_date, start_hhmm, end_hhmm):
     return start, end
 
 
+def wofs_required_lbc_length():
+    """Hours of boundaries (from DA_STARTTIME) needed by the WoFS windows.
+
+    The single per-event lbc cycle at DA_STARTTIME must cover both the last DA
+    first guess (DA_ENDTIME + DA_INTERVAL) and the last free forecast
+    (FCST_ENDTIME + FREE_FCST_LEN_HRS), rounded up to a whole LBC_INTERVAL.
+    """
+    event_date = os.getenv('EVENT_DATE').strip()
+    da_start_hhmm = os.getenv('DA_STARTTIME', '1500').strip().zfill(4)
+    da_end_hhmm = os.getenv('DA_ENDTIME', '0300').strip().zfill(4)
+    da_interval = int(os.getenv('DA_INTERVAL', '15'))
+    fcst_start_hhmm = os.getenv('FCST_STARTTIME', '1700').strip().zfill(4)
+    fcst_end_hhmm = os.getenv('FCST_ENDTIME', '0300').strip().zfill(4)
+    free_len = int(os.getenv('FREE_FCST_LEN_HRS', '6'))
+    lbc_interval = int(os.getenv('LBC_INTERVAL', '1'))
+
+    da_start, da_end = _window(event_date, da_start_hhmm, da_end_hhmm)
+    _, fcst_end = _window(event_date, fcst_start_hhmm, fcst_end_hhmm)
+    need_end = max(da_end + timedelta(minutes=da_interval),
+                   fcst_end + timedelta(hours=free_len))
+    secs = (need_end - da_start).total_seconds()
+    hours = -(-int(secs) // 3600)
+    return -(-hours // lbc_interval) * lbc_interval
+
+
 def _wofs_windowed_cycledefs():
     """Build cycledefs for WoFS windowed sub-hourly cycling (EVENT_DATE set).
 

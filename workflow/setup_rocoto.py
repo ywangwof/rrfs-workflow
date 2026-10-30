@@ -4,7 +4,8 @@ import shutil
 import sys
 import os
 from rocoto_funcs.setup_xml import setup_xml
-from rocoto_funcs.base import source, get_required_env, run_git_command
+from rocoto_funcs.base import source, get_required_env, run_git_command, wofs_windowed
+from rocoto_funcs.smart_cycledefs import wofs_required_lbc_length
 print('Aloha!')
 #
 
@@ -43,6 +44,18 @@ if os.getenv("DO_CHEMISTRY", "FALSE").upper() == "TRUE" and os.path.exists(f"{HO
 if os.path.exists(f"{HOMErrfs}/workflow/config.override"):
     source(f"{HOMErrfs}/workflow/config.override")
     print("NOTE: config.override found and some exp settings overwritten by it.\n")
+
+# WoFS: the single lbc cycle at DA_STARTTIME must span the DA and free-forecast
+# windows; raise LBC_LENGTH if it is too short for the configured start/end times.
+if wofs_windowed():
+    lbc_need = wofs_required_lbc_length()
+    lbc_set = int(os.getenv('LBC_LENGTH', '0') or 0)
+    if lbc_set < lbc_need:
+        print(f'NOTE: LBC_LENGTH={lbc_set} is too short for the WoFS windows '
+              f'(DA_STARTTIME={os.getenv("DA_STARTTIME")}, DA_ENDTIME={os.getenv("DA_ENDTIME")}, '
+              f'FCST_ENDTIME={os.getenv("FCST_ENDTIME")}, FREE_FCST_LEN_HRS={os.getenv("FREE_FCST_LEN_HRS")}); '
+              f'using LBC_LENGTH={lbc_need}\n')
+        os.environ['LBC_LENGTH'] = str(lbc_need)
 
 # Check compatibility of setup with nonvar cloud analysis
 if os.getenv("DO_NONVAR_CLOUD_ANA", "FALSE").upper() == "TRUE":

@@ -39,13 +39,19 @@ interval=$((10#${INTERVAL:-1}))
 #
 # compute fhr_begin, fhr_end, and then fhr_all for a given group
 #
-group_fhr_len=$(( tot_length/group_total_num ))
+# split the tot_length/interval steps across groups; the last group absorbs leftovers
+tot_steps=$(( tot_length/interval ))
+group_steps=$(( tot_steps/group_total_num ))
 if (( group_index==1 )); then
   fhr_begin=${offset}
 else
-  fhr_begin=$(( offset + (group_index-1)*group_fhr_len + interval ))
+  fhr_begin=$(( offset + ((group_index-1)*group_steps + 1)*interval ))
 fi
-fhr_end=$(( offset + group_index*group_fhr_len  ))
+if (( group_index==group_total_num )); then
+  fhr_end=$(( offset + tot_steps*interval ))
+else
+  fhr_end=$(( offset + group_index*group_steps*interval ))
+fi
 fhr_all=$(seq ${fhr_begin} ${interval} ${fhr_end})
 #
 # link all grib2 files with local file name (AAA, AAB, ...)
