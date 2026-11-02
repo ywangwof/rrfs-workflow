@@ -11,6 +11,7 @@ adhoc variables. This program was originally written to add the
 MetaData/longitude_latitude_pressure for use in l_closeobs duplicate checking
 but others can be added as necessary.
 3/4/2025: change all QualityMarker with missing values to 15
+11/2/2026: finish the air temperature of prepbufr surface obs (TemperatureEvent group)
 """
 
 # Disable warnings
@@ -70,6 +71,8 @@ for attr in obs_ds.ncattrs():  # Attributes for the main file
 # Copy all groups and variables into the new file, keeping only the variables in range
 groups = obs_ds.groups
 for group in groups:
+    if group == "TemperatureEvent":
+        continue
     if group == "QualityMarker":
         qc_group = True
     else:
@@ -98,6 +101,21 @@ for group in groups:
             if '_FillValue' in attr:
                 continue
             g.variables[var].setncattr(attr, invar.getncattr(attr))
+
+# prepbufr_{adpsfc,msonet,sfcshp}.yaml take airTemperature from event 2 of the temperature stack,
+# which is the reported air temperature when VIRTMP (program code 8) is on top.  Reports with no
+# VIRTMP event have their air temperature in event 1, so put that back, with its quality marker.
+if "TemperatureEvent" in groups:
+    event = obs_ds.groups["TemperatureEvent"].variables
+    no_virtmp = np.ma.filled(event["event1ProgramCode"][:], -1) != 8
+    obs_t = fout.groups["ObsValue"].variables["airTemperature"]
+    obs_qm = fout.groups["QualityMarker"].variables["airTemperature"]
+    t, qm = obs_t[:], obs_qm[:]
+    t[no_virtmp] = obs_ds.groups["ObsValue"].variables["virtualTemperature"][:][no_virtmp]
+    qm[no_virtmp] = np.ma.filled(event["event1QualityMarker"][:], 15)[no_virtmp]
+    qm[(qm < 0) | (qm > 15)] = 15
+    obs_t[:] = t
+    obs_qm[:] = qm
 
 # Generate longitude_latitude_pressure location strings (for dup checking)
 longitude_latitude_pressure = [f"{lon}_{lat}_{pres}" for lon, lat, pres in zip(obs_lon, obs_lat, obs_prs)]

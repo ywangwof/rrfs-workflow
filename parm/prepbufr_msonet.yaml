@@ -97,12 +97,24 @@ observations:
             transforms:
               - offset: 273.15
 
+          # When a report has moisture, VIRTMP (program code 8) puts virtual temperature on
+          # top of the stack, so T__EVENT{1} is Tv and the reported air temperature is
+          # T__EVENT{2}.  offline_ioda_tweak.py puts event 1 back for reports with no VIRTMP event.
           airTemperature:
-            query: "*/T___INFO/T__EVENT{1}/TOB"
+            query: "*/T___INFO/T__EVENT{2}/TOB"
             transforms:
               - offset: 273.15
           airTemperatureQualityMarker:
+            query: "*/T___INFO/T__EVENT{2}/TQM"
+          # stationPressure_GSL reads this as the observed Tv.
+          virtualTemperature:
+            query: "*/T___INFO/T__EVENT{1}/TOB"
+            transforms:
+              - offset: 273.15
+          temperatureEvent1QualityMarker:
             query: "*/T___INFO/T__EVENT{1}/TQM"
+          temperatureEvent1ProgramCode:
+            query: "*/T___INFO/T__EVENT{1}/TPC"
           airTemperatureError:
             query: "*/T___INFO/T__BACKG/TOE"
           airTemperatureTunedError:
@@ -278,6 +290,12 @@ observations:
           longName: "Temperature"
           units: "K"
 
+        - name: "ObsValue/virtualTemperature"
+          coordinates: "longitude latitude"
+          source: variables/virtualTemperature
+          longName: "Virtual Temperature"
+          units: "K"
+
         - name: "ObsValue/dewpointTemperature"
           coordinates: "longitude latitude"
           source: variables/dewpointTemperature
@@ -340,6 +358,17 @@ observations:
           coordinates: "longitude latitude"
           source: variables/airTemperatureQualityMarker
           longName: "Temperature Quality Marker"
+
+        # Read and dropped by offline_ioda_tweak.py
+        - name: "TemperatureEvent/event1QualityMarker"
+          coordinates: "longitude latitude"
+          source: variables/temperatureEvent1QualityMarker
+          longName: "Temperature Quality Marker of Event 1"
+
+        - name: "TemperatureEvent/event1ProgramCode"
+          coordinates: "longitude latitude"
+          source: variables/temperatureEvent1ProgramCode
+          longName: "Temperature Program Code of Event 1"
 
         - name: "QualityMarker/windEastward"
           coordinates: "longitude latitude"
