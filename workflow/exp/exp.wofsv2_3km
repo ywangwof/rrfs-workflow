@@ -239,8 +239,8 @@ case ${MACHINE} in
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
     export LBC_EXTRN_MDL_BASEDIR=${IC_EXTRN_MDL_BASEDIR}
     export ACCOUNT="wof"
-    #export QUEUE="batch"
-    export QUEUE="debug"
+    export QUEUE="batch"
+    #export QUEUE="debug"
     export WALLTIME="00:30:00"
 
     export PARTITION="u1-compute"
@@ -253,6 +253,16 @@ case ${MACHINE} in
     export NODES_MPASSIT="<nodes>2:ppn=48</nodes>"
     export NODES_GETKF="<nodes>2:ppn=48</nodes>"
     # WoFS getkf: 96 MPI ranks (matches graph.info.part.96) across 2 exclusive nodes.
+
+    export NATIVE_FCST="--mem=90G"
+    export NATIVE_MPASSIT="--mem=32G"
+    export NATIVE_GETKF="--mem=200G"
+    export NATIVE_IC="--mem=32G"
+    export NATIVE_LBC="--mem=32G"
+    export NATIVE_UNGRIB_IC="--mem=32G"
+    export NATIVE_UNGRIB_LBC="--mem=180G"
+    export NATIVE_IODA="--mem=8G"
+
     ;;
   "orion"|"hercules")
     export IC_EXTRN_MDL_BASEDIR=${EXTRN_MDL_BASEDIR}
