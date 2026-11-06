@@ -202,6 +202,8 @@ export WALLTIME_MPASSIT="0:30:00"
 export WALLTIME_GETKF="00:30:00"
 export WALLTIME_CREATE_DOMAIN="00:30:00"
 export WALLTIME_SAVE_FOR_NEXT="00:30:00"
+export WALLTIME_MPASSIT_FREE="01:00:00"
+export NATIVE_MPASSIT_FREE="--mem=64G"
 #
 export KEEPDATA=NO
 export TASKTHROTTLE=60
@@ -256,7 +258,7 @@ case ${MACHINE} in
     # WoFS getkf: 96 MPI ranks (matches graph.info.part.96) across 2 exclusive nodes.
 
     export NATIVE_FCST="--mem=90G"
-    export NATIVE_MPASSIT="--mem=32G"
+    export NATIVE_MPASSIT="--mem=64G"
     export NATIVE_GETKF="--mem=200G"
     export NATIVE_IC="--mem=32G"
     export NATIVE_LBC="--mem=32G"
