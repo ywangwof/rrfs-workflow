@@ -667,7 +667,7 @@ observations:
       obs localizations:
         - localization method: 3D Gaspari-Cohn
           horizontal lengthscale: 25000.0
-          vertical lengthscale: 7000.0
+          vertical lengthscale: 3000.0
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           max nobs: 1000
@@ -718,7 +718,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -1001,7 +1001,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -1283,7 +1283,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -1568,7 +1568,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -1850,7 +1850,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -2125,7 +2125,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -2403,7 +2403,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -2681,7 +2681,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -2964,7 +2964,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -3289,7 +3289,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -3606,12 +3606,35 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
 
       obs filters:
+        # ------------------
+        # Q36 test (wofsv2_tuning, 2026-11-04): METAR wind reports have no height (ZOB missing); fill
+        # MetaData/height = stationElevation + 10 m so the vertical localization can select them
+        # ------------------
+        - filter: Variable Assignment
+          assignments:
+            - name: MetaData/stationElevationFloat
+              type: float
+              source variable:
+                name: MetaData/stationElevation
+        - filter: Variable Assignment
+          where:
+            - variable:
+                name: MetaData/height
+              value: is_not_valid
+          assignments:
+            - name: MetaData/height
+              function:
+                name: ObsFunction/Arithmetic
+                options:
+                  variables:
+                    - name: MetaData/stationElevationFloat
+                  intercept: 10.0
         # ------------------
         # wind (287)
         # ------------------
@@ -9586,7 +9609,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -9867,7 +9890,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -10141,7 +10164,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -10423,7 +10446,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -11675,7 +11698,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -11956,7 +11979,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -12238,7 +12261,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -12519,7 +12542,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -12800,7 +12823,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -13082,7 +13105,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -13356,7 +13379,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -13647,7 +13670,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -13970,7 +13993,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
@@ -14294,7 +14317,7 @@ observations:
         - localization method: Horizontal Gaspari-Cohn
           lengthscale: 100e3 # orig
         - localization method: Vertical localization
-          vertical lengthscale: 6000
+          vertical lengthscale: 3000
           ioda vertical coordinate: height
           ioda vertical coordinate group: MetaData
           localization function: Gaspari Cohn
