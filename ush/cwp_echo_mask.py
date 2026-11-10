@@ -6,18 +6,23 @@ distance to the nearest echo column as MetaData/radarEchoDistance for a QC filte
 yaml (ush/yaml_finalize, CWP_ECHO_SCREEN_KM). near_echo() gives the same test as a mask.
 
 The WoFS MRMS IODA files put reflectivity >= 15 dBZ (echo file) and 0 dBZ clear-air points
-(clear file) on one regular 0.05 degree lattice at several heights. A lattice column counts as
-radar-clear only when it has clear-air points, no echo point and, if clear_top_m is set, a
-clear-air point at or above clear_top_m (under an anvil of 5-15 dBZ there are clear-air points
-only below it); every other column of the lattice (echo, echo at some heights only, or neither,
-i.e. 5-15 dBZ or no data) counts as echo.
-An obs is radar-clear when no echo column lies within buffer_km; obs outside the lattice count
-as echo. The distance to echo uses the same columns and distance formula, so
-distance <= buffer_km exactly when near_echo(buffer_km) is True; obs outside the lattice get 0
-and obs with no echo column within max_km get max_km. Only numpy and netCDF4 are needed.
+(clear file) at grid columns at several heights. The grid can be a regular lat/lon lattice
+(e.g. 0.05 degree) or any other structured grid, such as the Lambert geo_em grid of the
+Cressman regrid, since columns are searched with a k-d tree on their true locations.
+A column counts as radar-clear only when it has clear-air points, no echo point and, if
+clear_top_m is set, a clear-air point at or above clear_top_m (under an anvil of 5-15 dBZ there
+are clear-air points only below it); every other column counts as echo. Grid columns with no
+point at all (5-15 dBZ or no data) also count as echo: they are found as the grid positions one
+step beyond each column (column + (column - neighbour), for its 4 nearest neighbours) that are
+not occupied and that lie inside the lat/lon box of the data.
+An obs is radar-clear when no echo column lies within buffer_km; obs that are not in any
+column's cell (outside the grid, or inside a hole of it) count as echo. distance <= buffer_km
+exactly when near_echo(buffer_km) is True; obs not in any cell get 0 and obs with no echo
+column within max_km get max_km. Needs numpy, scipy and netCDF4.
 """
 import numpy as np
 from netCDF4 import Dataset
+from scipy.spatial import cKDTree
 
 EARTH_KM = 6371.0
 
@@ -37,86 +42,103 @@ def read_columns(paths):
     return lat, np.where(lon > 180.0, lon - 360.0, lon), hgt
 
 
-class EchoLattice:
-    """Echo / clear status of the MRMS lattice columns."""
+def _xyz(lat, lon):
+    """Cartesian coordinates (km) on the sphere; chord distance ~ great-circle distance at < 100 km."""
+    la, lo = np.deg2rad(lat), np.deg2rad(lon)
+    return EARTH_KM * np.column_stack([np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la)])
+
+
+class EchoColumns:
+    """Echo / clear status of the MRMS grid columns."""
 
     def __init__(self, echo_lat, echo_lon, clear_lat, clear_lon, clear_hgt=None, clear_top_m=None):
-        alat = np.concatenate([echo_lat, clear_lat])
-        alon = np.concatenate([echo_lon, clear_lon])
+        echo_lon = np.where(echo_lon > 180.0, echo_lon - 360.0, echo_lon)
+        clear_lon = np.where(clear_lon > 180.0, clear_lon - 360.0, clear_lon)
+        alat = np.round(np.concatenate([echo_lat, clear_lat]), 4)
+        alon = np.round(np.concatenate([echo_lon, clear_lon]), 4)
         if alat.size == 0:
             raise ValueError("no MRMS locations")
-        ulat = np.unique(np.round(alat, 4))
-        ulon = np.unique(np.round(alon, 4))
-        self.dlat = float(np.median(np.diff(ulat))) if ulat.size > 1 else 0.05
-        self.dlon = float(np.median(np.diff(ulon))) if ulon.size > 1 else 0.05
-        self.lat0, self.lon0 = float(ulat[0]), float(ulon[0])
-        self.ny = int(round((ulat[-1] - self.lat0) / self.dlat)) + 1
-        self.nx = int(round((ulon[-1] - self.lon0) / self.dlon)) + 1
-        has_echo = np.zeros((self.ny, self.nx), bool)
-        has_clear = np.zeros((self.ny, self.nx), bool)
-        has_echo[self._index(echo_lat, echo_lon)] = True
-        has_clear[self._index(clear_lat, clear_lon)] = True
-        self.top_clear = np.full((self.ny, self.nx), -np.inf)
-        if clear_hgt is not None:
-            np.maximum.at(self.top_clear, self._index(clear_lat, clear_lon), clear_hgt)
-        self.has_echo, self.has_clear = has_echo, has_clear
-        self.clear = has_clear & ~has_echo
+        cols, inv = np.unique(np.column_stack([alat, alon]), axis=0, return_inverse=True)
+        inv = inv.ravel()
+        ne = np.size(echo_lat)
+        has_echo = np.zeros(len(cols), bool)
+        has_clear = np.zeros(len(cols), bool)
+        has_echo[inv[:ne]] = True
+        has_clear[inv[ne:]] = True
+        top_clear = np.full(len(cols), -np.inf)
+        if clear_hgt is not None and np.size(clear_hgt):
+            np.maximum.at(top_clear, inv[ne:], clear_hgt)
+        clear = has_clear & ~has_echo
         if clear_top_m is not None:
-            self.clear &= self.top_clear >= clear_top_m
-        self.echo = ~self.clear
+            clear &= top_clear >= clear_top_m
+        self.lat, self.lon = cols[:, 0], cols[:, 1]
+        self.has_echo, self.has_clear, self.top_clear = has_echo, has_clear, top_clear
+        self.clear = clear
+        self.echo = ~clear
 
-    def _index(self, lat, lon):
-        j = np.rint((lat - self.lat0) / self.dlat).astype(int)
-        i = np.rint((lon - self.lon0) / self.dlon).astype(int)
-        return np.clip(j, 0, self.ny - 1), np.clip(i, 0, self.nx - 1)
+        xyz = _xyz(self.lat, self.lon)
+        self._tree = cKDTree(xyz)
+        k = min(5, len(cols))
+        dist, nbr = self._tree.query(xyz, k=k)
+        dist, nbr = dist.reshape(len(cols), k), nbr.reshape(len(cols), k)
+        # Grid spacing (nearest neighbour) and cell size (4th neighbour: covers the half
+        # diagonal of square and rectangular cells)
+        self.spacing_km = float(np.median(dist[:, 1])) if k > 1 else 1.0
+        self.cell_km = 0.75 * float(np.median(dist[:, -1])) if k > 1 else 1.0
 
-    def _search(self, lat, lon, radius_km):
-        """Outside-lattice mask and, for each lattice column within radius_km's index stencil,
-        (column is echo and inside the lattice, squared distance in km2)."""
+        # Empty grid columns (no MRMS point at all) inside the data's lat/lon box
+        holes = np.zeros((0, 3))
+        if k > 1:
+            hlat = (2.0 * self.lat[:, None] - self.lat[nbr[:, 1:]]).ravel()
+            hlon = (2.0 * self.lon[:, None] - self.lon[nbr[:, 1:]]).ravel()
+            eps = 1.0e-6
+            box = ((hlat >= self.lat.min() - eps) & (hlat <= self.lat.max() + eps) &
+                   (hlon >= self.lon.min() - eps) & (hlon <= self.lon.max() + eps))
+            hxyz = _xyz(hlat[box], hlon[box])
+            if len(hxyz):
+                dmin, _ = self._tree.query(hxyz)
+                holes = hxyz[dmin > 0.5 * self.spacing_km]
+                if len(holes):
+                    holes = np.unique(np.round(holes, 3), axis=0)
+        self.n_holes = len(holes)
+        echo_xyz = np.vstack([xyz[self.echo], holes])
+        self._echo_tree = cKDTree(echo_xyz) if len(echo_xyz) else None
+
+    def _query(self, lat, lon, radius_km):
+        """Outside-cell mask and distance (km) to the nearest echo location (inf beyond radius_km)."""
+        lat = np.asarray(lat, np.float64)
+        lon = np.asarray(lon, np.float64)
         lon = np.where(lon > 180.0, lon - 360.0, lon)
-        fj = (lat - self.lat0) / self.dlat
-        fi = (lon - self.lon0) / self.dlon
-        outside = (fj < -0.5) | (fj > self.ny - 0.5) | (fi < -0.5) | (fi > self.nx - 0.5)
-        coslat = np.cos(np.deg2rad(lat))
-        nj = int(np.ceil(radius_km / (EARTH_KM * np.deg2rad(self.dlat)))) + 1
-        ni = int(np.ceil(radius_km / (EARTH_KM * np.deg2rad(self.dlon) * max(coslat.min(), 0.1)))) + 1
-        j0, i0 = np.rint(fj).astype(int), np.rint(fi).astype(int)
-
-        def columns():
-            for dj in range(-nj, nj + 1):
-                for di in range(-ni, ni + 1):
-                    j, i = j0 + dj, i0 + di
-                    inside = (j >= 0) & (j < self.ny) & (i >= 0) & (i < self.nx)
-                    jc, ic = np.clip(j, 0, self.ny - 1), np.clip(i, 0, self.nx - 1)
-                    clat = self.lat0 + jc * self.dlat
-                    clon = self.lon0 + ic * self.dlon
-                    dy = np.deg2rad(clat - lat) * EARTH_KM
-                    dx = np.deg2rad(clon - lon) * EARTH_KM * coslat
-                    yield inside & self.echo[jc, ic], dx * dx + dy * dy
-        return outside, columns()
+        xyz = _xyz(lat.ravel(), lon.ravel())
+        dcol, _ = self._tree.query(xyz)
+        outside = (dcol > self.cell_km).reshape(lat.shape)
+        if self._echo_tree is None:
+            d = np.full(lat.shape, np.inf)
+        else:
+            d, _ = self._echo_tree.query(xyz, distance_upper_bound=radius_km)
+            d = d.reshape(lat.shape)
+        return outside, d
 
     def near_echo(self, lat, lon, buffer_km):
-        """True where an echo column lies within buffer_km of (lat, lon), or outside the lattice."""
-        outside, columns = self._search(lat, lon, buffer_km)
-        near = outside.copy()
-        for echo, d2 in columns:
-            near |= echo & (d2 <= buffer_km * buffer_km)
-        return near
+        """True where an echo column lies within buffer_km of (lat, lon), or outside the grid."""
+        outside, d = self._query(lat, lon, buffer_km * (1.0 + 1.0e-9))
+        return outside | (d <= buffer_km)
 
     def distance_km(self, lat, lon, max_km):
-        """Distance (km) to the nearest echo column, capped at max_km; 0 outside the lattice."""
-        outside, columns = self._search(lat, lon, max_km)
-        d2min = np.full(np.shape(lat), max_km * max_km)
-        for echo, d2 in columns:
-            d2min = np.where(echo & (d2 < d2min), d2, d2min)
-        d2min[outside] = 0.0
-        return np.sqrt(d2min)
+        """Distance (km) to the nearest echo column, capped at max_km; 0 outside the grid."""
+        outside, d = self._query(lat, lon, max_km)
+        d = np.minimum(d, max_km)
+        d[outside] = 0.0
+        return d
+
+
+EchoLattice = EchoColumns   # former name
 
 
 def lattice_from(echo_paths, clear_paths, clear_top_m=None):
     elat, elon, _ = read_columns(echo_paths)
     clat, clon, chgt = read_columns(clear_paths)
-    return EchoLattice(elat, elon, clat, clon, chgt, clear_top_m)
+    return EchoColumns(elat, elon, clat, clon, chgt, clear_top_m)
 
 
 def near_echo(lat, lon, echo_paths, clear_paths, buffer_km, clear_top_m=None):
