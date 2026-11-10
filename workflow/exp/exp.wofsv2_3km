@@ -197,7 +197,7 @@ export NODES_IODA_CWP="<nodes>1:ppn=6</nodes>"
 export NODES_IODA_OKMESO="<nodes>1:ppn=1</nodes>"
 #
 export WALLTIME_FCST="0:30:00"
-export WALLTIME_FCST_FREE="00:45:00"
+export WALLTIME_FCST_FREE="01:15:00"
 export WALLTIME_MPASSIT="0:30:00"
 export WALLTIME_GETKF="00:30:00"
 export WALLTIME_CREATE_DOMAIN="00:30:00"
